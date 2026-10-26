@@ -6,7 +6,7 @@ import { jsonBody } from "../http/json-body.js";
 import { parseId } from "../validators/id.js";
 import { hasErrors } from "../validators/common.js";
 import { validateDish, checkDishRefs } from "../validators/dish.js";
-import { parseMenuFilters } from "../validators/menu-filters.js";
+import { parseListQuery, basicAdvancedWhere, SORTS } from "../validators/list-query.js";
 import { TAG_SELECT, flatTags } from "../http/shapes.js";
 
 const router = Router();
@@ -32,13 +32,34 @@ const toDetail = ({ ingredients, tags, chef, ...dish }) => ({
 const listInclude = { chef: { select: { id: true, name: true } }, tags: TAG_SELECT };
 const toListItem = ({ tags, ...dish }) => ({ ...dish, tags: flatTags(tags) });
 
-// Danh sách. ?q= tìm theo tên (đúng đề bài); mở rộng từ block5: ?tag=&price=&available=1&sort=,
-// và ?searchIn=name,tag cho trang admin. Danh sách rỗng vẫn là thành công: data = [].
-// (Bước 7 của plan đổi sang phân trang + 4 chế độ search; bước 3 chỉ đổi loại món → tag.)
+// Danh sách có phân trang + tìm kiếm tại server (plan mục 5.2–5.4):
+//   ?mode=basic|advanced &q= &page= &pageSize= &sort=      (basic: thêm ?searchIn=name,tag cho trang admin)
+//   advanced thêm: &tag=<id> &minPrice= &maxPrice= &available=true|false
+// Trả data: { items, total, page, pageSize }. Không có kết quả / trang vượt phạm vi vẫn là thành công (items: []).
 router.get("/", async (req, res) => {
-  const { where, orderBy } = parseMenuFilters(req.query);
-  const dishes = await prisma.dish.findMany({ where, include: listInclude, orderBy });
-  ok(res, dishes.map(toListItem));
+  const query = parseListQuery(req.query);
+  const { errors } = query;
+  // Tag phải có thật: lọc theo tag không tồn tại là điều kiện sai, không phải "0 kết quả".
+  if (query.tagId !== null && !errors.tag && !(await prisma.tag.findUnique({ where: { id: query.tagId }, select: { id: true } }))) {
+    errors.tag = "Tag không tồn tại.";
+  }
+  if (hasErrors(errors)) return validationFailed(res, errors);
+
+  const where = basicAdvancedWhere(query);
+  const { page, pageSize } = query;
+  // `total` đếm CÙNG điều kiện với `items` (không đếm cả bảng). Hai câu chạy trong một transaction RepeatableRead
+  // → cùng một ảnh chụp dữ liệu: không có cảnh total nói 37 mà items lại thiếu/thừa vì có người vừa thêm/xoá món.
+  // Lọc + sắp xếp chạy trong SQL TRƯỚC LIMIT/OFFSET (take/skip) → sort áp dụng cho toàn bộ kết quả, không riêng trang này.
+  const [total, rows] = await prisma.$transaction(
+    [
+      prisma.dish.count({ where }),
+      prisma.dish.findMany({ where, include: listInclude, orderBy: SORTS[query.sort], skip: (page - 1) * pageSize, take: pageSize }),
+    ],
+    // maxWait: lần đầu sau khi pool nguội, mở kết nối + bắt đầu transaction có thể quá 2s mặc định (P2028 → 500).
+    { isolationLevel: "RepeatableRead", maxWait: 10_000, timeout: 15_000 },
+  );
+  // Trang vượt phạm vi: giữ `page` như yêu cầu, items rỗng, total thật — không tự sửa về trang cuối.
+  ok(res, { items: rows.map(toListItem), total, page, pageSize });
 });
 
 // Chi tiết. Id sai định dạng ("abc", "2.5") → NOT_FOUND ngay, không truy vấn (tránh lỗi kiểu dữ liệu thành 500).

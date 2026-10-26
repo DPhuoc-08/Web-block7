@@ -3,7 +3,10 @@
 #   ./scripts/check-api.sh            → chạy tất cả
 #   ./scripts/check-api.sh A          → chỉ phần A (đúng bảng REST của đề)
 #   ./scripts/check-api.sh B          → chỉ phần B (mở rộng do giữ quan hệ / block5)
+#   ./scripts/check-api.sh C          → chỉ phần C (phân trang GET /api/dishes — block7)
+#   ./scripts/check-api.sh D          → chỉ phần D (search basic / advanced — block7)
 #   ./scripts/check-api.sh E          → chỉ phần E (tag của món và chuyên môn đầu bếp — block7)
+# Phần C, D đối chiếu với dữ liệu seed (1.200 món) → chạy `npx prisma db seed` trước.
 # Kiểm tra 500 (mất kết nối DB): chạy thêm một API với DATABASE_URL sai ở cổng khác rồi đặt
 #   API_BROKEN=http://localhost:3001 ./scripts/check-api.sh A
 # Script tự tạo rồi tự xoá món/đầu bếp/nguyên liệu test. Tag test KHÔNG xoá được (API không có xoá tag)
@@ -99,15 +102,15 @@ part_a() {
 
   echo "== A. Món ăn /api/dishes"
   req GET /api/dishes
-  expect "Danh sách → 200, ok, data là mảng" 200 '.ok == true and (.data | type == "array") and (.data | length > 0)'
+  expect "Danh sách → 200, ok, data = { items, total, page, pageSize } (trang 1, 12 món)" 200 '.ok == true and (.data.items | type == "array") and (.data.items | length == 12) and .data.page == 1 and .data.pageSize == 12 and .data.total > 12'
   local total
-  total=$(jq '.data | length' <<<"$BODY")
+  total=$(jq '.data.total' <<<"$BODY")
   req GET "/api/dishes?q=PH%E1%BB%9E"
-  expect "?q=PHỞ → tìm theo tên, không phân biệt hoa thường" 200 '.ok and (.data | length >= 1) and all(.data[]; .name | ascii_downcase | test("phở"; "i"))'
+  expect "?q=PHỞ → tìm theo tên, không phân biệt hoa thường" 200 '.ok and (.data.items | length >= 1) and all(.data.items[]; .name | test("phở"; "i"))'
   req GET "/api/dishes?q=khongcomonnay"
-  expect "?q= không khớp → ok, data = []" 200 '.ok == true and .data == []'
+  expect "?q= không khớp → ok, items = [], total = 0 (không phải NOT_FOUND)" 200 '.ok == true and .data.items == [] and .data.total == 0'
   req GET "/api/dishes?q=a&q=b"
-  expect "?q=a&q=b (mảng) → bỏ qua, trả đủ $total món" 200 ".ok and (.data | length == $total)"
+  expect_code "?q=a&q=b (mảng) → VALIDATION_FAILED fields.q (block7: tham số sai không bị bỏ qua)" VALIDATION_FAILED '(.error.fields | keys) == ["q"]'
 
   req GET /api/dishes/1
   expect "Chi tiết /1 → bản ghi kèm chef (có tags) + tags + ingredients" 200 '.ok and .data.id == 1 and (.data.chef.name | type == "string") and (.data.chef.tags | length > 0) and (.data.tags | length > 0) and (.data.ingredients | length > 0)'
@@ -214,10 +217,6 @@ simple_resource() {
 }
 
 part_b() {
-  req GET /api/dishes
-  local total
-  total=$(jq '.data | length' <<<"$BODY")
-
   echo "== B. Món ăn: quan hệ đầu bếp / nguyên liệu, loại món"
   req POST /api/dishes '{"name":"X","price":1000,"tagIds":"Lẩu","chefId":9999,"ingredientIds":[9999],"available":"yes"}'
   expect_code "Thêm: tagIds không phải mảng id, available sai kiểu → VALIDATION_FAILED" VALIDATION_FAILED '(.error.fields | has("tagIds") and has("available"))'
@@ -238,30 +237,6 @@ part_b() {
   req GET "/api/dishes/$id"
   expect "  …liên kết vẫn là [3]" 200 '[.data.ingredients[].id] == [3]'
   req DELETE "/api/dishes/$id" >/dev/null
-
-  echo "== B. Món ăn: bộ lọc thực đơn, tìm kiếm admin (searchIn)"
-  req GET "/api/dishes?tag=2"
-  expect "?tag=2 (Món nước) → chỉ món có tag Món nước" 200 '.ok and (.data | length > 0) and all(.data[]; any(.tags[]; .id == 2))'
-  req GET "/api/dishes?tag=999999"
-  expect "?tag=999999 (tag không tồn tại) → []" 200 '.ok and .data == []'
-  req GET "/api/dishes?tag=abc"
-  expect "?tag=abc (sai định dạng) → bỏ qua, trả đủ" 200 "(.data | length == $total)"
-  req GET "/api/dishes?price=duoi-40k"
-  expect "?price=duoi-40k → giá < 40000" 200 '(.data | length > 0) and all(.data[]; .price < 40000)'
-  req GET "/api/dishes?price=40k-60k&sort=gia-tang"
-  expect "?price=40k-60k&sort=gia-tang → 40000–60000, giá tăng dần" 200 '(.data | length > 0) and all(.data[]; .price >= 40000 and .price <= 60000) and ([.data[].price] == ([.data[].price] | sort))'
-  req GET "/api/dishes?sort=gia-giam"
-  expect "?sort=gia-giam → giá giảm dần" 200 '[.data[].price] == ([.data[].price] | sort | reverse)'
-  req GET "/api/dishes?available=1"
-  expect "?available=1 → chỉ món còn phục vụ" 200 '(.data | length > 0) and all(.data[]; .available == true)'
-  req GET "/api/dishes?price=abc&sort=xyz&available=yes"
-  expect "Tham số lọc sai → bỏ qua, trả đủ, thứ tự id" 200 "(.data | length == $total) and ([.data[].id] == ([.data[].id] | sort))"
-  req GET "/api/dishes?q=m%C3%B3n%20n%C6%B0%E1%BB%9Bc"
-  expect '?q=món nước (mặc định chỉ tìm tên) → []' 200 '.data == []'
-  req GET "/api/dishes?q=m%C3%B3n%20n%C6%B0%E1%BB%9Bc&searchIn=name,tag"
-  expect '?q=món nước&searchIn=name,tag → tìm cả tên tag' 200 '(.data | length > 0) and all(.data[]; any(.tags[]; .name == "Món nước"))'
-  req GET "/api/dishes?q=m%C3%B3n%20n%C6%B0%E1%BB%9Bc&searchIn=description,xyz"
-  expect 'searchIn lạ → bỏ qua, chỉ tìm tên → []' 200 '.data == []'
 
   echo "== B. Tìm kiếm admin: đầu bếp (tên, chuyên môn), nguyên liệu (tên, đơn vị)"
   req GET "/api/chefs?q=TR%C3%81NG%20MI%E1%BB%86NG"
@@ -349,6 +324,106 @@ part_b() {
   expect "Xoá món dùng nó rồi xoá lại → ok" 200 '.ok == true and .data == null'
 }
 
+# Gom id của MỌI trang cho một bộ điều kiện (pageSize 100) → in mảng JSON. Dùng để chứng minh không mất / lặp món.
+collect() {
+  local query=$1 page=1 all="[]" items
+  while :; do
+    req GET "/api/dishes?${query}&pageSize=100&page=$page"
+    items=$(jq -c '[.data.items[] | {id, price, available}]' <<<"$BODY")
+    [ "$items" = "[]" ] && break
+    all=$(jq -c --argjson a "$all" --argjson b "$items" -n '$a + $b')
+    page=$((page + 1))
+  done
+  echo "$all"
+}
+
+part_c() {
+  echo "== C. Phân trang GET /api/dishes (seed 1.200 món)"
+  req GET /api/dishes
+  expect "Mặc định: page 1, pageSize 12, total 1200, id 1–12 (thứ tự id tăng)" 200 '.data.page == 1 and .data.pageSize == 12 and .data.total == 1200 and ([.data.items[].id] == [range(1;13)])'
+  req GET "/api/dishes?page=2"
+  expect "page=2 → id 13–24 (OFFSET 12)" 200 '[.data.items[].id] == [range(13;25)]'
+  req GET "/api/dishes?page=100"
+  expect "page=100 (trang cuối) → id 1189–1200" 200 '[.data.items[].id] == [range(1189;1201)]'
+  req GET "/api/dishes?page=101"
+  expect "page=101 (vượt phạm vi) → ok, items [], total 1200, page giữ 101" 200 '.ok and .data.items == [] and .data.total == 1200 and .data.page == 101'
+  req GET "/api/dishes?page=2147483647"
+  expect "page rất lớn → ok, items []" 200 '.ok and .data.items == []'
+  req GET "/api/dishes?page=&pageSize=%20"
+  expect "page, pageSize trắng → mặc định 1, 12" 200 '.data.page == 1 and .data.pageSize == 12'
+  req GET "/api/dishes?pageSize=100"
+  expect "pageSize=100 (tối đa) → 100 món" 200 '(.data.items | length) == 100'
+  for bad in 0 -1 abc 2.5 01 1e2 2147483648; do
+    req GET "/api/dishes?page=$bad"
+    expect_code "page=$bad → VALIDATION_FAILED fields.page" VALIDATION_FAILED '(.error.fields | keys) == ["page"]'
+  done
+  for bad in 0 101 abc 2.5; do
+    req GET "/api/dishes?pageSize=$bad"
+    expect_code "pageSize=$bad → VALIDATION_FAILED fields.pageSize" VALIDATION_FAILED '(.error.fields | keys) == ["pageSize"]'
+  done
+  req GET "/api/dishes?page=1&page=2"
+  expect_code "page lặp (?page=1&page=2) → VALIDATION_FAILED" VALIDATION_FAILED '(.error.fields | keys) == ["page"]'
+  req GET "/api/dishes?sort=xyz&mode=abc"
+  expect_code "sort=xyz, mode=abc → VALIDATION_FAILED cả hai trường" VALIDATION_FAILED '(.error.fields | keys | sort) == ["mode","sort"]'
+
+  local all
+  all=$(collect "mode=basic")
+  BODY=$all; STATUS=200
+  expect "Gom 12 trang × 100 món: đủ 1.200 id, không trùng" 200 '(length == 1200) and ([.[].id] | unique | length == 1200)'
+  all=$(collect "sort=gia-tang")
+  BODY=$all; STATUS=200
+  expect "sort=gia-tang qua mọi trang: giá không giảm, cùng giá thì id tăng (thứ tự xác định)" 200 '(length == 1200) and ([range(1; length) as $i | (.[$i-1].price < .[$i].price) or (.[$i-1].price == .[$i].price and .[$i-1].id < .[$i].id)] | all)'
+  req GET "/api/dishes?sort=moi-nhat"
+  expect "sort=moi-nhat → id 1200 đứng đầu" 200 '.data.items[0].id == 1200'
+  req GET "/api/dishes?sort=gia-giam&pageSize=1"
+  expect "sort=gia-giam → món đắt nhất trước (Combo 100% bò hoặc lẩu)" 200 '.data.items[0].price >= 300000'
+}
+
+part_d() {
+  echo "== D. Search basic / advanced"
+  local v expect_id
+  for pair in "%25:560" "_:700" "Tr%C3%A0_:700" "%5C:960" "100%25:560"; do
+    v=${pair%%:*}; expect_id=${pair##*:}
+    req GET "/api/dishes?q=$v"
+    expect "q=$(printf '%b' "${v//%/\\x}") → chỉ món #$expect_id (ký tự đặc biệt là dữ liệu, không phải wildcard)" 200 ".data.total == 1 and .data.items[0].id == $expect_id"
+  done
+  req GET "/api/dishes?q=%20%20%20"
+  expect "q toàn khoảng trắng → không có tiêu chí, total 1200" 200 '.data.total == 1200'
+
+  req GET "/api/dishes?mode=basic&q=ph%E1%BB%9F&pageSize=100"
+  local basic
+  basic=$(jq -c '{total: .data.total, ids: [.data.items[].id]}' <<<"$BODY")
+  req GET "/api/dishes?mode=advanced&q=ph%E1%BB%9F&pageSize=100"
+  expect "basic và advanced chỉ có cùng q=phở → cùng total, cùng danh sách id" 200 "({total: .data.total, ids: [.data.items[].id]}) == $basic"
+  req GET "/api/dishes?q=m%C3%B3n%20n%C6%B0%E1%BB%9Bc"
+  expect '?q=món nước (basic, mặc định chỉ tìm tên) → total 0' 200 '.data.total == 0'
+  req GET "/api/dishes?q=m%C3%B3n%20n%C6%B0%E1%BB%9Bc&searchIn=name,tag&pageSize=100"
+  expect '?q=món nước&searchIn=name,tag (admin) → các món có tag Món nước' 200 '.data.total == 224 and all(.data.items[]; any(.tags[]; .name == "Món nước"))'
+  req GET "/api/dishes?mode=basic&available=abc&tag=xyz"
+  expect "mode=basic kèm tham số của advanced (sai) → bỏ qua, không lỗi" 200 '.ok and .data.total == 1200'
+
+  local all
+  req GET "/api/dishes?mode=advanced&tag=9"
+  expect "advanced tag=9 (Lẩu) → 61 món, có món nằm ngoài trang đầu của danh sách mặc định (id > 12)" 200 '.data.total == 61 and any(.data.items[]; .id > 12)'
+  all=$(collect "mode=advanced&available=false")
+  BODY=$all; STATUS=200
+  expect "advanced available=false → mọi món tạm hết (false là tiêu chí, không bị bỏ)" 200 '(length > 0) and all(.[]; .available == false)'
+  req GET "/api/dishes?mode=advanced&minPrice=0&maxPrice=0"
+  expect "advanced minPrice=0&maxPrice=0 → 4 món giá 0 (0 là tiêu chí)" 200 '.data.total == 4 and all(.data.items[]; .price == 0)'
+  all=$(collect "mode=advanced&tag=12&minPrice=50000&maxPrice=100000&available=true")
+  BODY=$all; STATUS=200
+  expect "advanced Hải sản + giá 50.000–100.000 + còn phục vụ → mọi món thoả cả 3 (AND)" 200 '(length > 0) and all(.[]; .price >= 50000 and .price <= 100000 and .available == true)'
+  req GET "/api/dishes?mode=advanced&tag=12&minPrice=50000&maxPrice=100000&available=true"
+  expect "  …total khớp số món gom được qua các trang" 200 ".data.total == $(jq length <<<"$all")"
+  req GET "/api/dishes?mode=advanced&tag=&minPrice=&maxPrice=%20&available="
+  expect "advanced các ô trắng → không có tiêu chí, total 1200" 200 '.data.total == 1200'
+
+  for pair in "minPrice=-1:minPrice" "minPrice=1.5:minPrice" "minPrice=abc:minPrice" "maxPrice=1e3:maxPrice" "minPrice=50000&maxPrice=10000:maxPrice" "available=1:available" "available=yes:available" "tag=abc:tag" "tag=999999:tag"; do
+    req GET "/api/dishes?mode=advanced&${pair%%:*}"
+    expect_code "advanced ${pair%%:*} → VALIDATION_FAILED fields.${pair##*:}" VALIDATION_FAILED "(.error.fields | keys) == [\"${pair##*:}\"]"
+  done
+}
+
 part_e() {
   local stamp
   stamp=$(date +%s)
@@ -390,8 +465,8 @@ part_e() {
   expect_code "Sửa món tagIds=[] → VALIDATION_FAILED (món phải có ≥ 1 tag)" VALIDATION_FAILED '(.error.fields | keys) == ["tagIds"]'
   req PATCH "/api/dishes/$dish" '{"price":12000}'
   expect "Sửa món không gửi tagIds → tag giữ nguyên" 200 '.ok and .data.price == 12000 and ([.data.tags[].id] == [16])'
-  req GET "/api/dishes?tag=16"
-  expect "  …lọc ?tag=16 thấy món vừa sửa" 200 "any(.data[]; .id == $dish)"
+  req GET "/api/dishes?mode=advanced&tag=16&sort=moi-nhat"
+  expect "  …lọc advanced tag=16, mới nhất trước → món vừa sửa ở đầu" 200 ".data.items[0].id == $dish"
   req DELETE "/api/dishes/$dish"
   expect "Xoá món → ok (liên kết tag tự xoá theo Cascade)" 200 '.ok == true'
   req GET /api/tags
@@ -425,8 +500,10 @@ part_e() {
 case $PART in
   A) part_a ;;
   B) part_b ;;
+  C) part_c ;;
+  D) part_d ;;
   E) part_e ;;
-  *) part_a; part_b; part_e ;;
+  *) part_a; part_b; part_c; part_d; part_e ;;
 esac
 
 echo

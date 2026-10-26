@@ -176,3 +176,28 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - Phần còn lại của mục 7.2 (khung tìm, công tắc kiểu hiển thị, phân trang, Tải thêm, điểm phù hợp) làm cùng các bước 9–12 của chức năng đó.
 
 **Đã kiểm tra** (Chrome headless): ở 1280 / 820 / 375px, `/dishes?tag=9` (61 món) và `/dishes/22` không cuộn ngang; chip ở trang chi tiết đều là link `/dishes?tag=<id>`; nhóm Lẩu không có chip nào bị tô nhầm màu loại món; không lỗi console; `vite build` thành công. Một kiểm tra báo chưa đạt do kỳ vọng sai: khung "chưa có ảnh" trong `?tag=9` ghi "Lẩu" cho 60 món và "Món nướng" cho "Combo 100% bò" — món này có tag loại đầu tiên là Món nướng, app hiển thị đúng.
+
+## Bước 7 — API phân trang + search basic/advanced
+**Đã làm:**
+- `validators/list-query.js` (mới, thay `menu-filters.js` đã xoá): đọc và validate `mode`, `q`, `page`, `pageSize`, `sort`, `searchIn` (basic, admin), `tag`, `minPrice`, `maxPrice`, `available` (advanced) theo plan mục 5.3. Thiếu/chuỗi trắng → không có tiêu chí; có mà sai (kể cả tham số lặp `?q=a&q=b`) → `VALIDATION_FAILED` kèm `fields` theo đúng tên tham số. Tham số của advanced gửi kèm basic bị bỏ qua.
+- `GET /api/dishes` trả `data: { items, total, page, pageSize }`. `count` và `findMany` (skip/take) chạy trong một transaction `RepeatableRead` → cùng ảnh chụp dữ liệu. Thứ tự: `sort` + `id` làm thứ tự phụ; thêm `sort=moi-nhat` (id giảm, cho admin — plan mục 10.9). Tag không tồn tại → `VALIDATION_FAILED fields.tag`.
+- `scripts/check-api.sh`: phần A đọc `data.items`/`data.total`, `?q=a&q=b` nay là `VALIDATION_FAILED`; bỏ các test bộ lọc cũ của block6 ở phần B (`price=duoi-40k`, `available=1`, tham số sai bị bỏ qua); thêm **phần C** (phân trang, 34 kiểm tra) và **phần D** (search basic/advanced, 25 kiểm tra); hàm `collect` gom id qua mọi trang để chứng minh không mất/lặp món.
+
+**Lỗi đã phát hiện (bằng chứng nộp — plan mục 9):** *ký tự đặc biệt người dùng nhập bị hiểu là wildcard.*
+- *Tái hiện* (trước khi sửa, `name: { contains: q, mode: "insensitive" }`): `GET /api/dishes?q=%` và `?q=_` trả **cả 1.200 món**; `?q=Trà_` trả **24 món** ("Trà matcha sữa", "Trà chanh dây size lớn"…) thay vì chỉ "Trà_sữa nhà làm".
+- *Nguyên nhân:* Prisma 7 đưa chuỗi của `contains` vào `ILIKE '%…%'` nguyên vẹn, không escape `%`, `_`, `\`. Parameter binding chỉ chống SQL injection, không giữ nghĩa "chứa đúng chuỗi".
+- *Cách sửa:* `escapeLike` thay `\` → `\\`, `%` → `\%`, `_` → `\_` (một lượt) trước khi đưa vào `contains`. PostgreSQL dùng `\` làm ký tự escape mặc định của LIKE/ILIKE.
+- *Bằng chứng sau khi sửa:* `q=%` → 1 món (#560 "Combo 100% bò"); `q=_`, `q=Trà_` → 1 món (#700 "Trà_sữa nhà làm"); `q=\` → 1 món (#960 "Cơm \ cháo tuỳ chọn"); `q=100%` → #560. Năm trường hợp này nằm trong `check-api.sh D`.
+- *Khác plan mục 5.4:* plan ghi "nếu Prisma không escape thì chuyển sang `$queryRaw` với `ESCAPE '!'`". Đã chọn escape trước khi đưa vào Prisma: cùng ngữ nghĩa với `literal_pattern` của giảng viên, nhưng giữ được điều kiện tag (bảng liên kết), khoảng giá, trạng thái và `include` của Prisma, không phải viết lại thành SQL thô. Nếu bản Prisma sau tự escape, kiểm tra D sẽ báo (thoát hai lần → không tìm ra).
+
+**Lỗi kỹ thuật khác:** lần gọi đầu sau khi pool nguội báo `P2028 Unable to start a transaction in the given time` → 500 (như lần seed ở bước 2). Đặt `maxWait: 10_000, timeout: 15_000` cho transaction của danh sách.
+
+**Đã kiểm tra:**
+- `check-api.sh`: **192/192 đạt** (A 75, B 19, C 34, D 25, E 39). Lần chạy đầu 191/192: kiểm tra `minPrice > maxPrice` viết `%26` thay vì `&` nên server nhận `minPrice="50000&maxPrice=10000"` và báo lỗi định dạng (đúng) → sửa script.
+- Phân trang: mặc định id 1–12, page 2 → 13–24, page 100 → 1189–1200; page 101 và 2147483647 → `items: []`, total 1200, page giữ nguyên; page/pageSize sai (0, -1, abc, 2.5, 01, 1e2, vượt Int, 101, lặp) → `VALIDATION_FAILED`.
+- Gom 12 trang × 100: đủ 1.200 id, không trùng. `sort=gia-tang` qua mọi trang: giá không giảm, cùng giá thì id tăng.
+- Advanced: Lẩu → 61 món (có id > 12); `available=false` → mọi món tạm hết; `minPrice=0&maxPrice=0` → 4 món giá 0; Hải sản + 50.000–100.000 + còn phục vụ → mọi món thoả cả 3 điều kiện, `total` = số món gom qua các trang. Basic và advanced chỉ có `q=phở` → cùng total, cùng id.
+- Mỗi trang ~6,7KB (trước phân trang: 495KB cho cả danh sách), 0,5–0,9s (có lần 1,76s). Chậm hơn danh sách không phân trang (0,24s) vì transaction thêm vòng mạng (BEGIN, đặt isolation, COUNT, SELECT, nạp tag/đầu bếp, COMMIT; ~63ms mỗi vòng). Giữ transaction vì `total` phải khớp `items`; ghi lại để cân nhắc ở bước nghiệm thu.
+- Seed lại sau khi test.
+
+**Trạng thái:** SPA (thực đơn, admin món) vẫn đọc `data` là mảng và gửi tham số cũ (`price=`, `available=1`) → hai trang danh sách chưa chạy cho tới bước 9 (admin) và 10 (thực đơn). Chi tiết món, form, đầu bếp, nguyên liệu không bị ảnh hưởng.
