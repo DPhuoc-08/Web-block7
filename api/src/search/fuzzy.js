@@ -4,7 +4,7 @@
 // - Ngưỡng đặt bằng set_config(..., is_local = true) — tương đương SET LOCAL — trong CÙNG transaction với câu tìm:
 //   app dùng connection pool, đặt cho cả session sẽ "rò" sang request khác dùng lại kết nối đó.
 // - Không bỏ dấu: "pho bo" không khớp "Phở bò" (similarity ~0.2) — giới hạn đã nêu trong plan.
-// - Thứ tự: similarity giảm dần rồi id tăng dần.
+// - Thứ tự: similarity (làm tròn 3 chữ số trong SQL, như fulltext.js) giảm dần rồi id tăng dần.
 export const FUZZY_THRESHOLD = 0.3;
 
 export async function fuzzyPage(prisma, q, skip, take) {
@@ -13,7 +13,7 @@ export async function fuzzyPage(prisma, q, skip, take) {
       await tx.$queryRaw`SELECT set_config('pg_trgm.similarity_threshold', ${String(FUZZY_THRESHOLD)}, true)`;
       const [row] = await tx.$queryRaw`
         WITH matched AS (
-          SELECT d.id, similarity(d.name, ${q}) AS score
+          SELECT d.id, round(similarity(d.name, ${q})::numeric, 3) AS score
           FROM dishes d
           WHERE d.name % ${q}
         )

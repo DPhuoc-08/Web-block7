@@ -1,4 +1,4 @@
-# node scripts/run-sql.js prisma/sql/search-examples.sql  (2026-10-26 21:29)
+# node scripts/run-sql.js prisma/sql/search-examples.sql  (2026-10-26 22:57)
 
 [1] 1 dòng — cột: id, name
     id=700  name="Trà_sữa nhà làm"

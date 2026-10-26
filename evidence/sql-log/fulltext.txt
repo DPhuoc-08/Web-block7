@@ -4,7 +4,7 @@ URL trang: /dishes?mode=fulltext&q=nước dùng xương
 === GET /api/dishes?mode=fulltext&q=nước+dùng+xương&pageSize=12
 Response: ok: true, items: 12, total: 62, page: 1, pageSize: 12, id: [1095, 145, 24, 448, 595, 875, 289, 934, 1, 33, 53, 65]
 
-[SQL 57ms] 
+[SQL 53ms] 
     WITH input AS (SELECT plainto_tsquery('simple', $1) AS query),
     docs AS (
       SELECT d.id,
@@ -13,7 +13,7 @@ Response: ok: true, items: 12, total: 62, page: 1, pageSize: 12, id: [1095, 145,
       FROM dishes d
     ),
     matched AS (
-      SELECT docs.id, ts_rank(docs.document, input.query) AS score
+      SELECT docs.id, round(ts_rank(docs.document, input.query)::numeric, 3) AS score
       FROM docs CROSS JOIN input
       WHERE docs.document @@ input.query
     )
@@ -23,12 +23,12 @@ Response: ok: true, items: 12, total: 62, page: 1, pageSize: 12, id: [1095, 145,
              FROM (SELECT id, score FROM matched ORDER BY score DESC, id ASC LIMIT $2 OFFSET $3) p
            ), '[]'::json) AS hits
           params: ["nước dùng xương",12,0]
-[SQL 28ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE "public"."dishes"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
+[SQL 35ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE "public"."dishes"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
           params: [1095,145,24,448,595,875,289,934,1,33,53,65,"0"]
-[SQL 28ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
+[SQL 35ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
           params: [1,8,12,34,43,31,43,43,1,57,5,59,"0"]
-[SQL 3478ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
+[SQL 242ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
           params: [1,24,33,53,65,145,289,448,595,875,934,1095,"0"]
-[SQL 28ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) OFFSET $22
+[SQL 41ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) OFFSET $22
           params: [2,2,2,2,2,2,2,2,2,2,2,2,12,12,14,14,14,14,16,16,16,"0"]
 

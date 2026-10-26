@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hỗ trợ trình bày – Block 7</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1f2933;
+    --muted: #5b6672;
+    --border: #e1e5ea;
+    --accent: #2563eb;
+    --accent-soft: #e8efff;
+    --ok: #15803d;
+    --ok-soft: #e7f6ec;
+    --warn: #b45309;
+    --warn-soft: #fff4e0;
+    --err: #dc2626;
+    --err-soft: #fdecec;
+    --code-bg: #f1f3f6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 16px; }
+  @media (min-width: 768px) { .wrap { padding: 24px; } }
+
+  header.top { padding: 8px 0 4px; }
+  header.top h1 { margin: 0; font-size: 28px; line-height: 1.25; }
+  header.top p { margin: 4px 0 0; color: var(--muted); }
+  .members {
+    margin: 12px 0 0; padding: 0; list-style: none;
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .members li {
+    margin: 0; background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px; font-size: 14px;
+  }
+  .members .mssv { font-family: var(--mono); color: var(--muted); margin-left: 6px; }
+
+  nav.toc {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    margin: 12px -16px 0; padding: 8px 16px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  nav.toc a {
+    text-decoration: none; color: var(--text);
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 12px; font-size: 14px;
+  }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+  section.card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px; margin-top: 20px;
+    scroll-margin-top: 64px;
+  }
+  section.card > h2 { margin: 0 0 12px; font-size: 22px; }
+  h3 { margin: 20px 0 8px; font-size: 17px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+
+  code, pre { font-family: var(--mono); font-size: 0.9em; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  pre {
+    background: var(--code-bg); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; margin: 8px 0; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; overflow-wrap: normal; }
+
+  .muted { color: var(--muted); }
+  .tag {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 1px 8px; border-radius: 999px; vertical-align: middle;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .s200 { background: var(--ok-soft); color: var(--ok); }
+  .biz { background: var(--warn-soft); color: var(--warn); }
+  .no { background: var(--err-soft); color: var(--err); }
+
+  .grid { display: grid; gap: 12px; }
+  @media (min-width: 768px) { .grid.two { grid-template-columns: 1fr 1fr; } .grid.three { grid-template-columns: 1fr 1fr 1fr; } }
+  .box { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .box h3 { margin-top: 0; }
+  .box.chosen { border-color: var(--accent); background: var(--accent-soft); }
+  .box .label { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { background: var(--code-bg); font-weight: 600; white-space: nowrap; }
+  td:first-child { font-weight: 600; }
+
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+  .flow .step {
+    border: 1px solid var(--border); background: var(--card);
+    border-radius: 6px; padding: 4px 10px; font-size: 14px;
+  }
+  .flow .step.key { border-color: var(--accent); background: var(--accent-soft); }
+  .flow .arrow { color: var(--muted); }
+
+  .callout {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    padding: 10px 14px; border-radius: 6px; margin: 8px 0 12px;
+  }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+
+  footer { color: var(--muted); font-size: 14px; text-align: center; padding: 24px 0 8px; }
+
+  @media print { nav.toc { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Ứng dụng nhà hàng: tìm kiếm và phân trang</h1>
+  <p>Hỗ trợ trình bày Block 7: 1.200 món trong Supabase, phân trang tại server cho ba cách hiển thị, bốn chế độ tìm kiếm chạy tại PostgreSQL</p>
+  <ul class="members" aria-label="Thành viên">
+    <li>Phan Quang Hiệp<span class="mssv">24127039</span></li>
+    <li>Trần Nguyễn Đình Nhân<span class="mssv">24127093</span></li>
+    <li>Lê Nho Duy Phước<span class="mssv">24127508</span></li>
+    <li>Nguyễn Hoàng Mỹ Trang<span class="mssv">24127565</span></li>
+  </ul>
+</header>
+
+<nav class="toc" aria-label="Mục lục">
+  <a href="#muc-tieu">1. Mục tiêu</a>
+  <a href="#phan-trang">2. Phân trang</a>
+  <a href="#loc-sap-xep">3. Lọc và sắp xếp</a>
+  <a href="#search">4. Bốn chế độ search</a>
+  <a href="#postgres">5. Cấu hình PostgreSQL</a>
+  <a href="#bang-chung">6. Bằng chứng và lỗi</a>
+  <a href="#cong-nghe">7. Công nghệ</a>
+</nav>
+
+<!-- ============ 1. MỤC TIÊU ============ -->
+<section class="card" id="muc-tieu">
+  <h2>1. Mục tiêu</h2>
+  <p>
+    Câu hỏi của bài: <b>khi danh sách chỉ hiện một phần dữ liệu, thao tác nào tác động tới phần đang có, thao tác nào tác động tới toàn bộ tập kết quả?</b>
+    Câu trả lời của nhóm: browser <b>chỉ giữ một trang</b> (12 món), nên mọi thao tác cần nhìn toàn bộ tập —
+    <b>tìm, lọc, sắp xếp, đếm</b> — chạy tại PostgreSQL <b>trước</b> khi chọn trang. Browser chỉ hiển thị phần server đã chọn.
+  </p>
+
+  <div class="grid two">
+    <div class="box">
+      <h3>Chức năng</h3>
+      <ul>
+        <li><b>Dữ liệu:</b> 1.200 món, 60 đầu bếp, 250 nguyên liệu, 16 tag lưu thật trong Supabase; script seed tất định (chạy lại ra cùng dữ liệu).</li>
+        <li><b>Phân trang:</b> thực đơn <code>/dishes</code> có công tắc <b>Số trang / Tải thêm / Cuộn vô hạn</b>, cả ba gọi chung một API; admin món có số trang.</li>
+        <li><b>Lọc, sắp xếp:</b> theo tag, khoảng giá, trạng thái còn phục vụ; tên A→Z, giá tăng / giảm.</li>
+        <li><b>Search:</b> cơ bản, nâng cao, toàn văn, gần đúng — đều tại server.</li>
+        <li><b>URL:</b> điều kiện đã tìm (và số trang) nằm trên URL → Reload, copy link, Back/Forward mở lại đúng kết quả.</li>
+        <li><b>Nhóm thêm:</b> loại món và chuyên môn đầu bếp thành <b>tag</b> nhiều-nhiều, thêm tag mới ngay trong form; giữ mọi chức năng block6 (CRUD, xoá bị chặn, chuyển món).</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Tiêu chí nghiệm thu (đề)</h3>
+      <ol>
+        <li><b>Chọn trang, Tải thêm, cuộn tiếp:</b> ba kiểu UI hoạt động, không mất hoặc lặp món</li>
+        <li><b>Đổi filter hoặc sort:</b> đúng điều kiện, thứ tự và phạm vi đã công bố</li>
+        <li><b>Chuyển trang sau khi search:</b> giữ đúng bộ điều kiện, không trộn kết quả</li>
+        <li><b>Xoá điều kiện, Reload, mở lại link:</b> khôi phục như thiết kế</li>
+      </ol>
+      <p class="muted">Kết quả: API <b>211/211</b> kiểm tra (<code>check-api.sh</code>); truy vấn mẫu 14/14 đúng kỳ vọng; kịch bản trình duyệt bước 9–15 đạt hết; <b>cuộn hết 1.200 món: đủ id 1–1200, không trùng, không mất</b>. Chi tiết trong <code>BUILD_LOG.md</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. PHÂN TRANG ============ -->
+<section class="card" id="phan-trang">
+  <h2>2. Ba quyết định phân trang của nhóm</h2>
+  <p>"Phân trang" gồm ba quyết định độc lập. Nhóm chọn ở từng tầng như sau:</p>
+
+  <div class="grid three">
+    <div class="box chosen">
+      <div class="label">Nơi chia dữ liệu</div>
+      <h3>Server (PostgreSQL)</h3>
+      <p><code>LIMIT pageSize OFFSET (page − 1) × pageSize</code> chạy tại database. Browser không bao giờ nhận đủ 1.200 món.</p>
+    </div>
+    <div class="box chosen">
+      <div class="label">Cách cập nhật</div>
+      <h3>AJAX (fetch → JSON)</h3>
+      <p>SPA gọi <code>GET /api/dishes</code>, nhận JSON, thay hoặc nối vùng danh sách. Không tải lại document.</p>
+    </div>
+    <div class="box chosen">
+      <div class="label">Kiểu UI</div>
+      <h3>Cả ba</h3>
+      <p><b>Số trang</b> (thay danh sách), <b>Tải thêm</b> (nối khi bấm), <b>Cuộn vô hạn</b> (nối khi gần cuối) — cùng một API.</p>
+    </div>
+  </div>
+
+  <h3>Vì sao chia tại server</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Tiêu chí</th><th>Chia tại client (tải hết rồi chia)</th><th>Chia tại server (nhóm chọn)</th></tr></thead>
+    <tbody>
+      <tr><td>Lượng dữ liệu mỗi lần mở trang</td><td>1.200 món ≈ <b>480 KB</b> JSON (API giới hạn 100 món/request → 12 request)</td><td>12 món ≈ <b>6 KB</b></td></tr>
+      <tr><td>Chuyển trang / tải thêm</td><td>Không cần request, nhưng phải đợi tải hết lúc đầu</td><td>Một request nhỏ cho đúng trang cần xem</td></tr>
+      <tr><td>Search, lọc, sắp xếp</td><td>Phải chắc tập đã tải là đủ</td><td>Chạy trên toàn bộ bảng tại PostgreSQL rồi mới chọn trang</td></tr>
+      <tr><td>Dữ liệu tăng thêm</td><td>Tải ngày càng nặng</td><td>Mỗi trang vẫn chỉ 12 món</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Một trang đi từ database tới màn hình</h3>
+  <div class="flow">
+    <span class="step">URL trang <code>/dishes?q=phở&amp;page=2</code></span><span class="arrow">→</span>
+    <span class="step">SPA đọc URL (<code>listQuery.js</code>)</span><span class="arrow">→</span>
+    <span class="step key"><code>GET /api/dishes?mode=basic&amp;q=phở&amp;page=2&amp;pageSize=12</code></span><span class="arrow">→</span>
+    <span class="step">API validate query</span><span class="arrow">→</span>
+    <span class="step key">SQL: <code>COUNT(*)</code> + <code>… ORDER BY id LIMIT 12 OFFSET 12</code></span><span class="arrow">→</span>
+    <span class="step"><span class="tag s200">200</span> <code>{ items: [12], total: 54, page: 2, pageSize: 12 }</code></span>
+  </div>
+  <p class="muted">Metadata <code>total</code>, <code>page</code>, <code>pageSize</code> đủ để SPA biết đang ở đâu (món 13–24 / 54) và còn dữ liệu hay không (<code>page × pageSize &lt; total</code>). Envelope <code>ok / data / error</code> giữ như block6.</p>
+
+  <h3>Ba kiểu UI, cùng một API</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Kiểu</th><th>Hành vi</th><th>URL</th><th>Mở lại link</th></tr></thead>
+    <tbody>
+      <tr><td>Số trang <code>view=pages</code></td><td>Bấm trang → request trang đó, <b>thay</b> danh sách; cuộn mượt về đầu danh sách, focus vào đó</td><td>Có <code>page</code></td><td>Đúng trang và điều kiện</td></tr>
+      <tr><td>Tải thêm <code>view=more</code></td><td>Bấm nút → request trang kế, <b>nối</b> vào; hết thì "Đã hiện hết N món"</td><td>Không có <code>page</code></td><td><b>Tải lại từ đầu</b>, giữ điều kiện</td></tr>
+      <tr><td>Cuộn vô hạn <code>view=scroll</code></td><td><code>IntersectionObserver</code> thấy phần tử canh cuối danh sách → nối trang kế; vẫn có nút "Tải thêm" dự phòng</td><td>Không có <code>page</code></td><td><b>Tải lại từ đầu</b>, giữ điều kiện</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Tải thêm và Cuộn vô hạn dùng chung <b>một hàm <code>loadNext()</code></b> (<code>hooks/useAppendList.js</code>):</p>
+  <ul>
+    <li><b>Không gửi trùng:</b> cờ "đang tải" đặt <i>trước</i> khi gửi; bấm 3 lần liên tiếp chỉ có 1 request.</li>
+    <li><b>Không trộn kết quả:</b> đổi điều kiện → huỷ request cũ (<code>AbortController</code>), tăng "thế hệ"; response của điều kiện cũ về muộn bị bỏ.</li>
+    <li><b>Lỗi giữa chừng:</b> giữ danh sách đã có, nút đổi thành "Thử lại" và tải đúng trang chưa nhận.</li>
+    <li><b>Hết dữ liệu:</b> tính từ metadata của response vừa nhận, không gửi request thừa.</li>
+  </ul>
+</section>
+
+<!-- ============ 3. LỌC VÀ SẮP XẾP ============ -->
+<section class="card" id="loc-sap-xep">
+  <h2>3. Lọc và sắp xếp: đặt ở server, áp dụng cho toàn bộ tập kết quả</h2>
+  <div class="callout">
+    Ví dụ của câu hỏi xuyên suốt: đang ở trang 2 rồi chọn <b>Giá thấp → cao</b>. Nếu chỉ sắp xếp 12 món đang có, sẽ không thấy "Trà đá" 0đ (id 300).
+    Vì sắp xếp chạy tại server trước <code>LIMIT/OFFSET</code>, kết quả <b>về trang 1</b> và bắt đầu bằng 4 món 0đ: id 300, 420, 830, 1100 (cùng giá → xếp theo id).
+  </div>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Chức năng</th><th>Ở đâu</th><th>Áp dụng cho</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td>Lọc tag, khoảng giá, trạng thái</td><td>Thực đơn, chế độ Nâng cao + chip tag</td><td>Toàn bộ món khớp</td><td>Nối bằng AND; ô trống = không lọc; <code>giá 0</code> và <code>available=false</code> là tiêu chí có hiệu lực</td></tr>
+      <tr><td>Sắp xếp tên, giá tăng / giảm</td><td>Thực đơn (Cơ bản, Nâng cao)</td><td>Toàn bộ món khớp</td><td>Luôn thêm <code>id</code> làm thứ tự phụ → các trang chia trên cùng một thứ tự</td></tr>
+      <tr><td>Xếp theo độ phù hợp</td><td>Toàn văn, Gần đúng</td><td>Toàn bộ món khớp</td><td>Ô sắp xếp bị khoá; điểm giảm dần rồi <code>id</code></td></tr>
+      <tr><td>Tìm theo tên hoặc tag, mới nhất trước</td><td>Admin món</td><td>Toàn bộ món</td><td>Món vừa thêm luôn ở trang 1</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Đổi từ khoá, filter, sort hoặc chế độ → về <b>trang 1</b> / danh sách mới. Chuyển trang → giữ nguyên bộ điều kiện. "Xoá bộ lọc" chỉ đổi URL, không sửa dữ liệu.</p>
+</section>
+
+<!-- ============ 4. SEARCH ============ -->
+<section class="card" id="search">
+  <h2>4. Bốn chế độ search (tại server, trên toàn bộ 1.200 món)</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Chế độ</th><th>Quy tắc</th><th>Ví dụ trên dữ liệu seed</th></tr></thead>
+    <tbody>
+      <tr><td>Cơ bản <code>basic</code></td><td>Tên <b>chứa</b> chuỗi, không phân biệt hoa thường. <code>%</code>, <code>_</code>, <code>\</code> người dùng gõ là ký tự thường</td><td>"phở" → 54 món; "100%" → chỉ "Combo 100% bò"; "Trà_" → chỉ "Trà_sữa nhà làm"</td></tr>
+      <tr><td>Nâng cao <code>advanced</code></td><td><code>q</code> + tag + giá từ / đến + trạng thái, nối bằng <b>AND</b>; chỉ có <code>q</code> thì giống hệt cơ bản</td><td>"gỏi" + Hải sản + 50.000–150.000đ + còn phục vụ → 14 món; giá 0 đến 0 → 4 món</td></tr>
+      <tr><td>Toàn văn <code>fulltext</code></td><td>Đủ các <b>từ</b> trong tên hoặc mô tả, không cần liền nhau; tên nặng hơn mô tả; xếp theo <code>ts_rank</code></td><td>"nước dùng xương" → 62 món, món có "xương" trong tên đứng đầu</td></tr>
+      <tr><td>Gần đúng <code>fuzzy</code></td><td>Tên gần giống khi gõ sai: <code>similarity ≥ 0.3</code>; xếp theo độ giống</td><td>"bò lúc lắt" → "Bò lúc lắc" (0.667) đầu tiên, 6 món</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>Toàn văn, gần đúng mà <b>từ khoá trống</b> → SPA báo "Nhập từ khoá để tìm", không gửi request; API cũng trả <code>VALIDATION_FAILED</code> nếu bị gọi thẳng.</li>
+    <li>Không có kết quả → <span class="tag s200">200</span> <code>ok: true, items: [], total: 0</code>, không phải "không tìm thấy".</li>
+    <li>Tham số sai (<code>page=0</code>, <code>minPrice=abc</code>, <code>available=yes</code>, giá từ &gt; giá đến, tag không có) → <span class="tag biz">VALIDATION_FAILED</span> kèm lỗi theo từng ô; khác block6 (bỏ qua giá trị lạ) để người dùng biết điều kiện không được áp dụng.</li>
+  </ul>
+</section>
+
+<!-- ============ 5. POSTGRESQL ============ -->
+<section class="card" id="postgres">
+  <h2>5. Cấu hình PostgreSQL</h2>
+  <div class="grid two">
+    <div class="box">
+      <h3>Full-text</h3>
+<pre><code>setweight(to_tsvector('simple', coalesce(name, '')), 'A') ||
+setweight(to_tsvector('simple', coalesce(description, '')), 'D')
+  @@ plainto_tsquery('simple', $q)
+score = ts_rank(document, query)</code></pre>
+      <ul>
+        <li>Cấu hình <code>simple</code> cho <b>cả</b> document và query.</li>
+        <li>Document = tên + mô tả; <code>coalesce</code> vì mô tả có thể <code>NULL</code>.</li>
+        <li><code>plainto_tsquery</code>: chữ người dùng là văn bản thường, các từ nối bằng AND.</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Fuzzy (<code>pg_trgm</code>)</h3>
+<pre><code>BEGIN
+SELECT set_config('pg_trgm.similarity_threshold', '0.3', true)
+… WHERE name % $q   -- similarity(name, $q) ≥ 0.3
+COMMIT</code></pre>
+      <ul>
+        <li>Extension <code>pg_trgm</code> bật một lần (<code>setup-search.sql</code>).</li>
+        <li>Ngưỡng công bố <b>0.3</b>, đặt bằng <code>SET LOCAL</code> (<code>set_config(…, true)</code>) <b>trong cùng transaction</b>: app dùng connection pool, đặt cho cả session sẽ "rò" sang request khác.</li>
+      </ul>
+    </div>
+  </div>
+  <ul>
+    <li><b>Thứ tự xác định:</b> toàn văn / gần đúng xếp theo điểm giảm dần rồi <code>id</code> tăng dần; các kiểu sắp xếp khác luôn thêm <code>id</code>. Trên dữ liệu không đổi, các trang không lặp, không bỏ món.</li>
+    <li><b>Đếm cùng điều kiện:</b> cơ bản / nâng cao chạy <code>COUNT</code> và trang trong một transaction <code>REPEATABLE READ</code>; toàn văn / gần đúng trả <code>total</code> và id của trang trong <b>một</b> câu SQL.</li>
+    <li><b>An toàn:</b> raw SQL chỉ qua tagged template <code>prisma.$queryRaw</code> (tham số bind), không nối input vào chuỗi SQL.</li>
+    <li><b>Giới hạn đã công bố:</b> <code>simple</code> không bỏ dấu — "pho" không khớp "phở", "pho bo tai" ở chế độ gần đúng ra 0 món (giống ≈ 0.22 &lt; 0.3). Không làm tìm không dấu hay semantic search. Offset có thể dịch nếu dữ liệu bị thêm / xoá giữa hai request.</li>
+  </ul>
+</section>
+
+<!-- ============ 6. BẰNG CHỨNG ============ -->
+<section class="card" id="bang-chung">
+  <h2>6. Network, SQL và lỗi đã phát hiện</h2>
+  <h3>Network cho thấy tải từng phần</h3>
+  <p>29/29 request tới API trong buổi thu bằng chứng là <code>fetch</code>, <code>application/json</code>, status 200; mỗi lần chuyển trang / tải thêm / cuộn tới cuối chỉ có <b>một</b> <code>GET /api/dishes</code> nhận <b>12 món</b> kèm <code>total: 1200</code>. Không có request tải lại document.</p>
+  <h3>SQL thật chứng minh nơi chia trang</h3>
+<pre><code>[SQL 28ms] SELECT … FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
+          params: ["12","12"]                ← trang 2 của thực đơn (evidence/sql-log/so-trang-2.txt)</code></pre>
+  <p class="muted">Đủ bộ cho 4 chế độ và 3 kiểu UI trong <code>evidence/</code> (URL trang ↔ request API ↔ SQL), kèm số bản ghi và kết quả truy vấn mẫu có "Kỳ vọng".</p>
+
+  <h3>Lỗi nhóm đã phát hiện: ký tự người dùng gõ bị hiểu là wildcard</h3>
+  <div class="grid two">
+    <div class="box">
+      <p class="label">Tái hiện (trước khi sửa)</p>
+      <p>Tìm <code>%</code> hoặc <code>_</code> → <span class="tag no">cả 1.200 món</span>. Tìm <code>Trà_</code> → nhiều món "Trà …" thay vì chỉ "Trà_sữa nhà làm".</p>
+      <p class="label">Nguyên nhân</p>
+      <p>Prisma đưa chuỗi của <code>contains</code> vào <code>ILIKE '%…%'</code> nguyên vẹn. Tham số bind chống SQL injection nhưng không giữ nghĩa "chứa đúng chuỗi".</p>
+    </div>
+    <div class="box">
+      <p class="label">Cách sửa</p>
+      <p><code>escapeLike</code>: <code>\</code> → <code>\\</code>, <code>%</code> → <code>\%</code>, <code>_</code> → <code>\_</code> trước khi đưa vào ILIKE.</p>
+      <p class="label">Bằng chứng sau khi sửa</p>
+      <p><code>100%</code> → 1 món (id 560), <code>Trà_</code> → 1 món (id 700), <code>\</code> → 1 món (id 960); <code>check-api.sh</code> phần D kiểm tra lại mỗi lần chạy; <code>wildcard-escape.sql</code> chạy cả hai phiên bản trên database.</p>
+    </div>
+  </div>
+  <p class="muted">Các lỗi khác tìm ra và đã sửa (danh sách cũ còn hiện thoáng qua khi đổi điều kiện ở Tải thêm, khung xương ngắn làm cuộn không tới đầu danh sách…) ghi trong <code>kichban.html</code> và <code>BUILD_LOG.md</code>.</p>
+</section>
+
+<!-- ============ 7. CÔNG NGHỆ ============ -->
+<section class="card" id="cong-nghe">
+  <h2>7. Công nghệ, công cụ và lý do</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Công nghệ / công cụ</th><th>Dùng để</th><th>Vì sao chọn</th></tr></thead>
+    <tbody>
+      <tr><td>Express 5 · Prisma 7.10 + adapter-pg</td><td>REST API, truy vấn PostgreSQL</td><td>Giữ nguyên block6; Prisma cho basic / advanced (điều kiện ghép bằng object), <code>$queryRaw</code> tham số hoá cho full-text và fuzzy</td></tr>
+      <tr><td>Supabase PostgreSQL (project riêng của block7)</td><td>Lưu 1.200 món, chạy search</td><td>Search và phân trang phải chạy trên dữ liệu thật; project mới để seed không đụng database block5/block6</td></tr>
+      <tr><td>PostgreSQL full-text (<code>simple</code>) · <code>pg_trgm</code></td><td>Chế độ toàn văn, gần đúng</td><td>Có sẵn trong PostgreSQL, đúng cấu hình đề yêu cầu; không cần dịch vụ search riêng</td></tr>
+      <tr><td><code>LIMIT / OFFSET</code></td><td>Chọn trang</td><td>Nhảy thẳng tới trang N (số trang, link có <code>page</code>); 1.200 món thì offset đủ nhanh</td></tr>
+      <tr><td>React 19 · React Router 8 (thư viện) · Vite 8</td><td>SPA</td><td>Giữ block6; điều kiện tìm đọc / ghi bằng <code>useSearchParams</code> trên URL</td></tr>
+      <tr><td><code>fetch</code> + <code>AbortController</code></td><td>Gọi API, huỷ request cũ</td><td>Đổi điều kiện nhanh thì response cũ không ghi đè hay nối vào kết quả mới</td></tr>
+      <tr><td><code>IntersectionObserver</code></td><td>Cuộn vô hạn</td><td>Có sẵn trong browser; theo dõi một phần tử canh, không gắn sự kiện scroll</td></tr>
+      <tr><td>CSS thuần</td><td>Giao diện, responsive, hiệu ứng cơ bản</td><td>Tiếp tục bộ màu block6; khung xương khi tải, món mới hiện dần; tắt chuyển động khi người dùng bật "giảm chuyển động"</td></tr>
+      <tr><td><code>check-api.sh</code> · <code>run-sql.js</code> · Chrome headless</td><td>Nghiệm thu</td><td>211 kiểm tra API; truy vấn mẫu có kỳ vọng; kịch bản trình duyệt gom id qua cả 3 kiểu UI</td></tr>
+      <tr><td>Git</td><td>Lưu phiên bản</td><td>Mỗi bước một commit; commit "Nghiệm thu giai đoạn I" đánh dấu mốc đạt đủ tiêu chí</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Cố ý không dùng</h3>
+  <ul>
+    <li><b>Tải hết 1.200 món rồi chia ở browser:</b> ≈ 480 KB cho mỗi lần mở trang, và search / lọc / sắp xếp phải chắc tập đã tải là đủ.</li>
+    <li><b>Lọc / sắp xếp 12 món của trang đang xem rồi gọi đó là kết quả:</b> sai phạm vi — món phù hợp ở trang khác bị bỏ.</li>
+    <li><b>Thư viện phân trang, infinite scroll, React Query / SWR, Redux:</b> phần cần chứng minh (chặn gửi trùng, bỏ response cũ, giữ danh sách khi lỗi) phải nằm trong code nhóm đọc được.</li>
+    <li><b>Cursor pagination:</b> không nhảy thẳng tới trang N được; dữ liệu seed không đổi nên offset đủ đúng.</li>
+    <li><b><code>$queryRawUnsafe</code>, nối chuỗi SQL:</b> mở đường SQL injection.</li>
+    <li><b>Đặt ngưỡng <code>pg_trgm</code> cho cả session:</b> với connection pool, ngưỡng rò sang request khác.</li>
+    <li><b>Tin mặc định của Prisma về <code>%</code>, <code>_</code>:</b> đã kiểm chứng bằng request thật — chính là lỗi nhóm phát hiện.</li>
+    <li><b>Ghi số món đã tải lên URL ở Tải thêm / Cuộn:</b> mở lại link tải lại từ đầu với cùng điều kiện — chính sách đơn giản, nhất quán, đã công bố.</li>
+    <li><b>Tìm không dấu, semantic search, template / thư viện UI:</b> ngoài yêu cầu của đề.</li>
+  </ul>
+</section>
+
+<footer>
+  Block 7 · Tìm kiếm và phân trang
+</footer>
+</div>
+</body>
+</html>

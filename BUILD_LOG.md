@@ -418,3 +418,52 @@ Chạy trên dữ liệu seed đầy đủ (1.200 món), API :3000, SPA bản pr
 - 3 file SQL chạy lại đúng các dòng "Kỳ vọng" (count-rows 3 kết quả, search-examples 14, wildcard-escape 7).
 - Kịch bản bước 15 sau khi sửa CSS: lần đầu **22/24**. Hai mục phụ thuộc thời gian: khung xương biến mất giữa lúc chờ thấy và lúc đo style; rê chuột. Chạy riêng mục rê chuột thì đạt (`:hover`, `translateY(-2px)`, bo 10px). Chạy lại toàn bộ hai lần: **24/24, 24/24**.
 - Seed lại sau khi test, hash `798423e712f0ffdc`.
+
+## Bước 17 — README, `hotrotrinhbay.html`, `kichban.html`
+**Đã làm:**
+- **`README.md`:** chạy ứng dụng, dựng database lần đầu (`db push` → `setup-search.sql` → `db seed`), biến môi trường (thêm `LOG_SQL`), kiểm tra (`check-api.sh` A–E kèm số kiểm tra từng phần, 3 file SQL), 7 bảng, hợp đồng `GET /api/dishes` (tham số, metadata, SQL của từng chế độ), `/api/tags`, `tagIds`, các trang và URL của thực đơn, cấu trúc.
+- **`hotrotrinhbay.html`** (khung và bộ màu tài liệu của block6):
+  - mục tiêu + câu hỏi xuyên suốt, tiêu chí nghiệm thu và kết quả;
+  - ba quyết định phân trang, kèm lý do bằng lượng dữ liệu (≈ 6 KB/trang so với ≈ 480 KB cho cả 1.200 món);
+  - lọc / sắp xếp đặt ở đâu, áp dụng cho tập nào (ví dụ trang 2 + giá tăng);
+  - bốn chế độ search và cấu hình PostgreSQL;
+  - Network + SQL thật; lỗi wildcard;
+  - công nghệ và "cố ý không dùng".
+- **`kichban.html`:**
+  - 7 bảng và số bản ghi; các món cố ý có để kiểm tra (giá 0, ký tự đặc biệt);
+  - hợp đồng `GET /api/dishes` và các trường hợp biên;
+  - 8 luồng URL trang ↔ request API ↔ SQL, SQL lấy từ `evidence/sql-log/`;
+  - kịch bản demo 23 bước theo bảng nghiệm thu, 4 chế độ search, tag và chức năng cũ;
+  - lỗi chính + 8 lỗi khác đã sửa.
+- Thành viên lấy theo tài liệu block6 (cùng nhóm).
+
+**Đối chiếu với code thật (mọi con số trong tài liệu lấy từ API / SQL trên seed chuẩn):**
+- Thông báo sau khi sửa món ghi theo đúng chữ của app: "Đã lưu thay đổi của món." (bản nháp viết "Đã lưu").
+- Dòng SQL trích trong `hotrotrinhbay.html` lấy nguyên văn từ `evidence/sql-log/so-trang-2.txt`.
+- Kịch bản bước 17 (Chrome headless, **13/13 đạt**) kiểm các câu "Thấy được" chưa có trong kịch bản trước:
+  - `?page=101` → "Trang 101 không có món nào." + "Về trang cuối (100)";
+  - toàn văn "cá kho tộ" trên giao diện;
+  - gợi ý gõ có dấu khi gần đúng ra 0 món;
+  - lỗi "giá đến < giá từ" cạnh ô;
+  - admin tìm "lẩu" → 61;
+  - 375px phân trang "Trang 2/100";
+  - hai trang tài liệu không cuộn ngang ở 1280 / 375px, mọi link mục lục trỏ đúng id.
+
+**Lỗi phát hiện khi viết kịch bản: thứ tự toàn văn / gần đúng khi điểm bằng nhau.**
+- *Tái hiện:* toàn văn "cá kho tộ": 10 món cùng hiện "phù hợp 1.000" nhưng thứ tự id là 8, 109, 201, 80, 380… Hai nơi lệch nhau:
+  - `search-examples.sql` (xếp theo điểm đã làm tròn) ghi kỳ vọng 8, 80, 109, 201, 342;
+  - API thật lại xếp khác.
+- *Nguyên nhân:* `ts_rank` (và `similarity`) là float4. Mười món chỉ khác nhau ở sai số: `ts_rank(...)::text` in ra đều là `1`, nhưng `= 1` là false. API xếp theo phần lẻ vô nghĩa đó rồi mới tới id. SPA làm tròn 3 chữ số khi hiển thị, nên người dùng thấy "cùng điểm mà id lộn xộn". `check-api.sh` đã có kiểm tra "cùng điểm thì id tăng" nhưng chưa có từ khoá nào sinh ra điểm bằng nhau.
+- *Quyết định (người dùng chốt):* điểm làm tròn 3 chữ số, cùng điểm thì id tăng dần. Phương án bỏ: giữ điểm gốc và sửa file SQL mẫu, vì giao diện vẫn trông sai.
+- *Cách sửa:* `search/fulltext.js`, `search/fuzzy.js` tính `round(…::numeric, 3) AS score` ngay trong CTE `matched`. Cùng một giá trị vừa dùng để `ORDER BY score DESC, id ASC`, vừa trả cho SPA.
+- *Bằng chứng:*
+  - Thêm kiểm tra "cá kho tộ" vào `check-api.sh` D. Chạy **trước khi sửa: CHƯA ĐẠT** (43/44); sau khi sửa: **44/44**.
+  - Gần đúng "bò lúc lắt" giữ nguyên thứ tự (9, 957, 610, 255, 625, 216).
+  - Toàn văn "nước dùng xương" vẫn 62 món, đầu tiên "Hủ tiếu xương khô".
+  - Thu lại toàn bộ `evidence/` (network, sql-log có `round(`, ảnh, `search-examples.txt`).
+- *Chạy lại phần D lần đầu sau khi sửa:* 11 mục basic báo chưa đạt, vì API (`node --watch`) đang khởi động lại giữa lúc script chạy. Chạy lại: 44/44.
+
+**Đã kiểm tra:**
+- `check-api.sh` **211/211** (thêm 1 kiểm tra ở D). README, `hotrotrinhbay.html` cập nhật số mới.
+- Kịch bản trình duyệt bước 10 **22/22** (có toàn văn / gần đúng).
+- Seed lại, hash `798423e712f0ffdc`.

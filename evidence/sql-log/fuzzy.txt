@@ -4,11 +4,11 @@ URL trang: /dishes?mode=fuzzy&q=bò lúc lắt
 === GET /api/dishes?mode=fuzzy&q=bò+lúc+lắt&pageSize=12
 Response: ok: true, items: 6, total: 6, page: 1, pageSize: 12, id: [9, 957, 610, 255, 625, 216]
 
-[SQL 49ms] SELECT set_config('pg_trgm.similarity_threshold', $1, true)
+[SQL 32ms] SELECT set_config('pg_trgm.similarity_threshold', $1, true)
           params: ["0.3"]
-[SQL 39ms] 
+[SQL 37ms] 
         WITH matched AS (
-          SELECT d.id, similarity(d.name, $1) AS score
+          SELECT d.id, round(similarity(d.name, $1)::numeric, 3) AS score
           FROM dishes d
           WHERE d.name % $2
         )
@@ -18,14 +18,14 @@ Response: ok: true, items: 6, total: 6, page: 1, pageSize: 12, id: [9, 957, 610,
                  FROM (SELECT id, score FROM matched ORDER BY score DESC, id ASC LIMIT $3 OFFSET $4) p
                ), '[]'::json) AS hits
           params: ["bò lúc lắt","bò lúc lắt",12,0]
-[SQL 38ms] COMMIT
+[SQL 27ms] COMMIT
           params: []
 [SQL 32ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE "public"."dishes"."id" IN ($1,$2,$3,$4,$5,$6) OFFSET $7
           params: [9,957,610,255,625,216,"0"]
-[SQL 42ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $7
+[SQL 34ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $7
           params: [9,216,255,610,625,957,"0"]
-[SQL 44ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6) OFFSET $7
+[SQL 37ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6) OFFSET $7
           params: [4,46,29,28,9,29,"0"]
-[SQL 160ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9) OFFSET $10
+[SQL 28ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9) OFFSET $10
           params: [3,3,3,3,4,9,14,14,15,"0"]
 

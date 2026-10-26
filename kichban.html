@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kịch bản – Block 7</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1f2933;
+    --muted: #5b6672;
+    --border: #e1e5ea;
+    --accent: #2563eb;
+    --accent-soft: #e8efff;
+    --ok: #15803d;
+    --ok-soft: #e7f6ec;
+    --warn: #b45309;
+    --warn-soft: #fff4e0;
+    --err: #dc2626;
+    --err-soft: #fdecec;
+    --code-bg: #f1f3f6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 16px; }
+  @media (min-width: 768px) { .wrap { padding: 24px; } }
+
+  header.top h1 { margin: 0; font-size: 28px; line-height: 1.25; }
+  header.top p { margin: 4px 0 0; color: var(--muted); }
+
+  nav.toc {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    margin: 12px -16px 0; padding: 8px 16px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  nav.toc a {
+    text-decoration: none; color: var(--text);
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 12px; font-size: 14px;
+  }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+  section { margin-top: 32px; scroll-margin-top: 56px; }
+  h2 { font-size: 22px; margin: 0 0 12px; }
+  h2 .num { color: var(--accent); margin-right: 6px; }
+  h3 { font-size: 17px; margin: 0 0 8px; }
+  p { margin: 0 0 10px; }
+
+  code {
+    font-family: var(--mono); font-size: 0.88em;
+    background: var(--code-bg); padding: 1px 5px; border-radius: 4px;
+    overflow-wrap: anywhere;
+  }
+  pre.block {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; font-size: 14px; margin: 0 0 12px;
+  }
+  pre.block code { background: none; padding: 0; overflow-wrap: normal; }
+  .card pre.block { background: var(--code-bg); border: 0; margin: 6px 0; font-size: 13px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .grid { display: grid; gap: 12px; }
+  @media (min-width: 768px) {
+    .grid.c2 { grid-template-columns: 1fr 1fr; }
+  }
+
+  .callout {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    padding: 10px 14px; border-radius: 6px; margin: 0 0 12px;
+  }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .note { color: var(--muted); font-size: 14px; margin-top: 8px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .03em; }
+  tr:last-child td { border-bottom: 0; }
+
+  .tbl-name { font-family: var(--mono); color: var(--muted); font-size: 13px; font-weight: 400; margin-left: 6px; }
+
+  .m { font-family: var(--mono); font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+  .m.get { background: var(--accent-soft); color: var(--accent); }
+  .m.post { background: var(--ok-soft); color: var(--ok); }
+  .s { font-family: var(--mono); font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .s.ok { color: var(--ok); }
+  .s.biz { color: var(--warn); }
+  .s.bad { color: var(--err); }
+
+  ul.plain { margin: 0; padding-left: 20px; }
+  ul.plain li { margin: 2px 0; }
+
+  ol.flow { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+  ol.flow > li {
+    counter-increment: step; position: relative;
+    padding: 6px 0 6px 38px; border-left: 2px solid var(--border); margin-left: 12px;
+  }
+  ol.flow > li:last-child { border-left-color: transparent; }
+  ol.flow > li::before {
+    content: counter(step); position: absolute; left: -13px; top: 6px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--card); border: 2px solid var(--accent); color: var(--accent);
+    font-size: 12px; font-weight: 700; display: grid; place-items: center;
+  }
+  .who {
+    display: inline-block; font-size: 12px; font-weight: 600; min-width: 62px;
+    padding: 0 6px; border-radius: 4px; margin-right: 6px; text-align: center;
+    background: var(--code-bg); color: var(--muted);
+  }
+  .who.db { background: var(--ok-soft); color: var(--ok); }
+  .who.br { background: var(--accent-soft); color: var(--accent); }
+  .who.spa { background: var(--warn-soft); color: var(--warn); }
+  .branch {
+    margin: 4px 0 0; padding: 6px 10px; border-radius: 6px;
+    background: var(--err-soft); font-size: 14px;
+  }
+
+  ol.demo { margin: 0; padding-left: 22px; }
+  ol.demo li { margin: 8px 0; }
+  ol.demo .see { color: var(--muted); }
+  .crit { display: inline-block; font-size: 12px; font-weight: 600; padding: 0 8px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); margin-right: 4px; }
+
+  footer.end { margin: 40px 0 16px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Kịch bản – Block 7: Tìm kiếm và phân trang</h1>
+  <p>REST API (Express · Prisma · Supabase PostgreSQL) ở <code>localhost:3000</code> · SPA (React · React Router · Vite) ở <code>localhost:5173</code> · 1.200 món</p>
+</header>
+
+<nav class="toc">
+  <a href="#db">1. Database</a>
+  <a href="#api">2. Hợp đồng API</a>
+  <a href="#luong">3. Luồng thao tác</a>
+  <a href="#demo">4. Kịch bản demo</a>
+  <a href="#loi">5. Lỗi đã phát hiện</a>
+</nav>
+
+<!-- ============ 1. DATABASE ============ -->
+<section id="db">
+  <h2><span class="num">1</span>Database: 7 bảng, project Supabase riêng của block7</h2>
+  <div class="callout">
+    Khác block6: <strong>loại món</strong> (<code>dishes.category</code>) và <strong>chuyên môn đầu bếp</strong> (<code>chefs.specialty</code>) thành bảng
+    <code>tags</code> dùng chung, nối nhiều-nhiều. Một món có nhiều tag ("Lẩu", "Hải sản", "Miền Nam"), một đầu bếp có nhiều chuyên môn.
+    Database mới (Supabase, Singapore) để seed 1.200 món không đụng dữ liệu block5/block6.
+  </div>
+<pre class="block"><code>chefs 1 ───&lt; n dishes              dishes.chefId → chefs.id               (Restrict)
+dishes n &gt;───&lt; n ingredients       dish_ingredients (dishId Cascade, ingredientId Restrict)
+dishes n &gt;───&lt; n tags              dish_tags        (dishId Cascade, tagId Restrict)
+chefs  n &gt;───&lt; n tags              chef_tags        (chefId Cascade, tagId Restrict)</code></pre>
+
+  <div class="grid c2">
+    <div class="card">
+      <h3>Dish <span class="tbl-name">dishes</span></h3>
+      <div class="table-wrap"><table>
+        <tr><th>Cột</th><th>Kiểu</th></tr>
+        <tr><td><code>id</code></td><td>Int, tự tăng — thứ tự phụ của mọi kiểu sắp xếp</td></tr>
+        <tr><td><code>name</code></td><td>String — basic/advanced (ILIKE), fuzzy (<code>pg_trgm</code>)</td></tr>
+        <tr><td><code>description</code></td><td>String? — cùng tên làm document full-text</td></tr>
+        <tr><td><code>price</code></td><td>Int (đồng), ≥ 0 — có 4 món giá 0</td></tr>
+        <tr><td><code>available</code></td><td>Boolean — 180 món tạm hết</td></tr>
+        <tr><td><code>imageUrl</code>, <code>imageCredit</code>, <code>createdAt</code></td><td>String?, String?, DateTime</td></tr>
+        <tr><td><code>chefId</code></td><td>Int, khoá ngoại → chefs</td></tr>
+      </table></div>
+    </div>
+    <div class="card">
+      <h3>Tag <span class="tbl-name">tags</span> · DishTag <span class="tbl-name">dish_tags</span> · ChefTag <span class="tbl-name">chef_tags</span></h3>
+      <div class="table-wrap"><table>
+        <tr><th>Bảng</th><th>Cột</th></tr>
+        <tr><td><code>tags</code></td><td><code>id</code>, <code>name</code> (không trùng, kể cả khác hoa/thường)</td></tr>
+        <tr><td><code>dish_tags</code></td><td><code>dishId</code>, <code>tagId</code> — khoá chính ghép, index <code>tagId</code></td></tr>
+        <tr><td><code>chef_tags</code></td><td><code>chefId</code>, <code>tagId</code> — khoá chính ghép, index <code>tagId</code></td></tr>
+      </table></div>
+      <h3 style="margin-top:14px">Chef <span class="tbl-name">chefs</span> · Ingredient <span class="tbl-name">ingredients</span></h3>
+      <p class="note" style="margin:0">Như block6, bỏ <code>specialty</code>: <code>id</code>, <code>name</code> (không trùng), <code>unit?</code> (nguyên liệu).</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <h3>Số bản ghi (<code>node scripts/run-sql.js prisma/sql/count-rows.sql</code>)</h3>
+    <div class="table-wrap"><table>
+      <tr><th>dishes</th><th>chefs</th><th>ingredients</th><th>tags</th><th>dish_tags</th><th>chef_tags</th><th>dish_ingredients</th></tr>
+      <tr><td><strong>1.200</strong></td><td>60</td><td>250</td><td>16</td><td>2.106</td><td>106</td><td>5.357</td></tr>
+    </table></div>
+    <p class="note">
+      Seed <code>npx prisma db seed</code> (trong <code>api/</code>) tất định: chạy lại luôn ra cùng dữ liệu, id từ 1. 20 món đầu là món của block6 ("Phở bò tái" id 1).
+      Món cố ý có để kiểm tra: <strong>giá 0</strong> — 300 "Trà đá", 420 "Rau sống (tặng kèm)", 830 "Nước sâm (tặng kèm)", 1100 "Đá viên (tặng kèm)";
+      <strong>ký tự đặc biệt</strong> — 560 "Combo 100% bò" (tag Lẩu, tên không có chữ "lẩu"), 700 "Trà_sữa nhà làm", 960 "Cơm \ cháo tuỳ chọn".
+      Đầu bếp 0 món: 7 "Bùi Thanh Tâm", 60 "Bùi Hữu Hạnh". Nguyên liệu chưa dùng: Nấm hương, Lá é, Đường thốt nốt, Váng đậu, Sầu riêng.
+      Mỗi món được gán đầu bếp có chuyên môn trùng một tag của món.
+    </p>
+  </div>
+</section>
+
+<!-- ============ 2. HỢP ĐỒNG API ============ -->
+<section id="api">
+  <h2><span class="num">2</span>Hợp đồng <code>GET /api/dishes</code> mới</h2>
+  <div class="callout">
+    Block6 trả mảng món. Block7 trả <strong>một trang</strong> kèm metadata, vẫn trong envelope <code>ok / data / error</code>.
+    Mọi nơi đang dùng danh sách món (thực đơn, admin) đã đổi theo.
+  </div>
+  <div class="grid c2">
+    <div class="card">
+      <h3>Request</h3>
+<pre class="block"><code>GET /api/dishes?mode=advanced&amp;q=gỏi&amp;tag=12
+    &amp;minPrice=50000&amp;maxPrice=150000&amp;available=true
+    &amp;sort=gia-tang&amp;page=2&amp;pageSize=12</code></pre>
+      <ul class="plain">
+        <li><code>mode</code>: <code>basic</code> (mặc định) · <code>advanced</code> · <code>fulltext</code> · <code>fuzzy</code></li>
+        <li><code>page</code> ≥ 1 (mặc định 1) · <code>pageSize</code> 1–100 (mặc định 12)</li>
+        <li><code>q</code>: bắt buộc ở <code>fulltext</code>, <code>fuzzy</code></li>
+        <li><code>sort</code>: <code>ten</code> · <code>gia-tang</code> · <code>gia-giam</code> · <code>moi-nhat</code> (basic, advanced)</li>
+        <li><code>tag</code>, <code>minPrice</code>, <code>maxPrice</code>, <code>available</code>: chỉ <code>advanced</code>, nối bằng AND</li>
+        <li><code>searchIn=name,tag</code>: admin tìm cả tên tag (basic)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Response <span class="s ok">200</span></h3>
+<pre class="block"><code>{ "ok": true, "data": {
+    "items": [ { "id": 806, "name": "…", "price": …,
+                 "chef": { "id": 14, "name": "…" },
+                 "tags": [ { "id": 1, "name": "Khai vị" }, … ] }, … ],
+    "total": 14, "page": 2, "pageSize": 12 } }</code></pre>
+      <ul class="plain">
+        <li><code>total</code> đếm <strong>cùng điều kiện</strong> với <code>items</code>; còn trang sau khi <code>page × pageSize &lt; total</code>.</li>
+        <li><code>fulltext</code>, <code>fuzzy</code>: mỗi món có thêm <code>score</code> (3 chữ số), xếp theo điểm rồi <code>id</code>.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <h3>Các trường hợp biên</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Request</th><th>Kết quả</th></tr>
+      <tr><td><code>?q=khongcomonnay</code></td><td><span class="s ok">200</span> <code>ok: true, items: [], total: 0</code> — không có kết quả là thành công, không phải <code>NOT_FOUND</code></td></tr>
+      <tr><td><code>?page=101</code></td><td><span class="s ok">200</span> <code>ok: true, items: [], total: 1200, page: 101</code> — giữ <code>page</code> như yêu cầu, không tự đổi về trang cuối</td></tr>
+      <tr><td><code>?page=0</code>, <code>?pageSize=101</code>, <code>?page=abc</code></td><td><span class="s biz">200 VALIDATION_FAILED</span> <code>fields.page</code> / <code>fields.pageSize</code></td></tr>
+      <tr><td><code>?mode=advanced&amp;minPrice=abc&amp;available=yes</code></td><td><span class="s biz">200 VALIDATION_FAILED</span> <code>fields.minPrice</code>, <code>fields.available</code> — API không chạy câu SQL nào</td></tr>
+      <tr><td><code>?mode=advanced&amp;minPrice=200&amp;maxPrice=100</code> · <code>?mode=advanced&amp;tag=999</code></td><td><span class="s biz">VALIDATION_FAILED</span> <code>fields.maxPrice</code> · <code>fields.tag</code> ("Tag không tồn tại.")</td></tr>
+      <tr><td><code>?mode=fulltext</code> (không <code>q</code>) · <code>?mode=abc</code></td><td><span class="s biz">VALIDATION_FAILED</span> <code>fields.q</code> · <code>fields.mode</code></td></tr>
+      <tr><td><code>?mode=advanced&amp;minPrice=0&amp;maxPrice=0</code> · <code>&amp;available=false</code></td><td>4 món giá 0 · 180 món tạm hết — <code>0</code> và <code>false</code> là tiêu chí có hiệu lực</td></tr>
+    </table></div>
+    <p class="note">Tag: <span class="m get">GET</span> <code>/api/tags</code> → <code>[{ id, name, dishCount, chefCount }]</code>; <span class="m post">POST</span> <code>/api/tags {"name"}</code> (trùng không phân biệt hoa thường → <code>VALIDATION_FAILED</code>). Món và đầu bếp ghi bằng <code>tagIds</code> (≥ 1, id có thật). Bảng đầy đủ trong <code>README.md</code>.</p>
+  </div>
+</section>
+
+<!-- ============ 3. LUỒNG ============ -->
+<section id="luong">
+  <h2><span class="num">3</span>Luồng từng thao tác: URL trang ↔ request API ↔ SQL</h2>
+  <div class="callout">
+    <span class="who br">Browser</span> URL trên thanh địa chỉ (trang của SPA) &nbsp;
+    <span class="who spa">SPA</span> đọc URL, gọi API, cập nhật danh sách &nbsp;
+    <span class="who">API</span> validate, dựng điều kiện &nbsp;
+    <span class="who db">DB</span> câu SQL thật (bật <code>LOG_SQL=1</code>, bản đầy đủ trong <code>evidence/sql-log/</code>)
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>A. Số trang: bấm trang 2</h3>
+      <ol class="flow">
+        <li><span class="who br">Browser</span>Nút trang 2 là <strong>link</strong> → URL <code>/dishes?page=2</code> (History API, không tải lại document).</li>
+        <li><span class="who spa">SPA</span><code>readQuery(URL)</code> → <code>toApiParams</code> → <span class="m get">GET</span> <code>/api/dishes?mode=basic&amp;page=2&amp;pageSize=12</code>. Request của URL trước (nếu chưa về) bị huỷ bằng <code>AbortController</code>.</li>
+        <li><span class="who">API</span><code>parseListQuery</code>: page = 2, pageSize = 12, không có tiêu chí → <code>where = {}</code>.</li>
+        <li><span class="who db">DB</span>Trong một transaction <code>REPEATABLE READ</code>:
+<pre class="block"><code>SELECT COUNT(*) … FROM dishes WHERE 1=1                                → 1200
+SELECT … FROM dishes WHERE 1=1 ORDER BY id ASC LIMIT $1 OFFSET $2      params: ["12","12"]
+SELECT … FROM chefs WHERE id IN (…) · dish_tags · tags                  ← chỉ cho 12 món của trang</code></pre></li>
+        <li><span class="who spa">SPA</span><code>{ items: 12, total: 1200, page: 2, pageSize: 12 }</code> → <strong>thay</strong> danh sách, "Món 13–24 trong 1200 món", cuộn mượt về đầu danh sách và đưa focus tới đó.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>B. Tải thêm và Cuộn vô hạn: nối trang 3</h3>
+      <ol class="flow">
+        <li><span class="who br">Browser</span>Bấm "Tải thêm" (<code>view=more</code>) hoặc phần tử canh cuối danh sách vào vùng nhìn (<code>view=scroll</code>, <code>IntersectionObserver</code>, sớm 200px). URL không đổi.</li>
+        <li><span class="who spa">SPA</span>Cả hai gọi <code>loadNext()</code>: đang tải hoặc đã hết → thoát; đặt cờ đang tải <strong>trước</strong> khi gửi → <span class="m get">GET</span> <code>/api/dishes?mode=basic&amp;page=3&amp;pageSize=12</code>.
+          <div class="branch">Bấm 3 lần liên tiếp: lần 2, 3 thấy cờ đang tải → chỉ 1 request <code>page=3</code>.</div></li>
+        <li><span class="who db">DB</span>Như A với <code>OFFSET 24</code>.</li>
+        <li><span class="who spa">SPA</span>Response còn thuộc điều kiện hiện tại → <strong>nối</strong> 12 món (hiện dần), <code>nextPage = 4</code>, "Đã hiện 36/1200 món"; <code>end</code> khi <code>page × pageSize ≥ total</code>.
+          <div class="branch">Lỗi mạng: giữ 24 món, <code>nextPage</code> vẫn 3, nút thành "Thử lại" → tải đúng trang 3. Cuộn vô hạn ngắt observer khi lỗi để không gọi API liên tục.</div></li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>C. Đổi điều kiện khi request cũ chưa về</h3>
+      <ol class="flow">
+        <li><span class="who br">Browser</span>Đang ở Tải thêm, bấm "Tải thêm" (request trang 2 chậm) rồi bấm ngay chip "Đồ uống" → URL <code>/dishes?mode=advanced&amp;tag=11&amp;view=more</code>.</li>
+        <li><span class="who spa">SPA</span>Khoá điều kiện đổi → huỷ request cũ, tăng "thế hệ", xoá danh sách, tải trang 1 của điều kiện mới. Ngay lần render đầu đã hiện khung xương, không hiện danh sách cũ.</li>
+        <li><span class="who spa">SPA</span>Response trang 2 cũ (nếu vẫn về) mang thế hệ cũ → <strong>bị bỏ</strong>. Danh sách chỉ có 12 món Đồ uống (total 86).</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>D. Tìm cơ bản "100%" (ký tự đặc biệt)</h3>
+      <ol class="flow">
+        <li><span class="who br">Browser</span>Gõ "100%" (URL chưa đổi, chưa gọi API), Enter → <code>/dishes?q=100%25</code>.</li>
+        <li><span class="who spa">SPA</span><span class="m get">GET</span> <code>/api/dishes?mode=basic&amp;q=100%25&amp;pageSize=12</code></li>
+        <li><span class="who">API</span><code>escapeLike("100%")</code> → <code>100\%</code> → Prisma <code>contains</code>, <code>mode: "insensitive"</code>.</li>
+        <li><span class="who db">DB</span><code>WHERE name ILIKE ('%' || $1 || '%')</code> &nbsp; params: <code>["100\\%", …]</code> (log in dạng JSON) → chỉ "Combo 100% bò".</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>E. Nâng cao: "gỏi" + Hải sản + 50.000–150.000đ + còn phục vụ, giá tăng dần</h3>
+      <ol class="flow">
+        <li><span class="who br">Browser</span>Chọn "Nâng cao", nhập tên và giá → Tìm; ô Tag, Trạng thái, Sắp xếp áp dụng ngay khi đổi. Mỗi lần áp dụng: URL mới, <strong>bỏ <code>page</code></strong> (về trang 1).</li>
+        <li><span class="who db">DB</span>
+<pre class="block"><code>WHERE name ILIKE ('%' || $1 || '%')
+  AND EXISTS (SELECT … FROM dish_tags t0 WHERE t0."tagId" = $2 AND t0."dishId" = dishes.id)
+  AND price &gt;= $3 AND price &lt;= $4 AND available = $5
+ORDER BY price ASC, id ASC LIMIT … OFFSET …        params: ["gỏi", 12, 50000, 150000, true, …]</code></pre>
+          <code>COUNT(*)</code> cùng điều kiện → <code>total: 14</code>; trang 2 có 2 món.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>F. Toàn văn "nước dùng xương"</h3>
+      <ol class="flow">
+        <li><span class="who spa">SPA</span><span class="m get">GET</span> <code>/api/dishes?mode=fulltext&amp;q=nước+dùng+xương&amp;pageSize=12</code>; ô sắp xếp khoá ("Theo độ phù hợp").</li>
+        <li><span class="who db">DB</span>Một câu SQL trả cả <code>total</code> và id + điểm của trang:
+<pre class="block"><code>WITH input AS (SELECT plainto_tsquery('simple', $1) AS query),
+docs AS (SELECT id, setweight(to_tsvector('simple', coalesce(name,'')), 'A')
+                 || setweight(to_tsvector('simple', coalesce(description,'')), 'D') AS document FROM dishes),
+matched AS (SELECT id, round(ts_rank(document, query)::numeric, 3) AS score
+            FROM docs, input WHERE document @@ query)
+SELECT count(*) …, json_agg(… ORDER BY score DESC, id ASC LIMIT $2 OFFSET $3)</code></pre></li>
+        <li><span class="who">API</span>Nạp tag, đầu bếp của các id bằng Prisma, giữ đúng thứ tự điểm → 62 món, đầu tiên "Hủ tiếu xương khô" (có "xương" trong tên, trọng số A).</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>G. Gần đúng "bò lúc lắt" (gõ sai)</h3>
+      <ol class="flow">
+        <li><span class="who db">DB</span>Trong <strong>cùng một transaction</strong>:
+<pre class="block"><code>SELECT set_config('pg_trgm.similarity_threshold', $1, true)     params: ["0.3"]   ← SET LOCAL
+WITH matched AS (SELECT id, round(similarity(name, $1)::numeric, 3) AS score
+                 FROM dishes WHERE name % $2)                    params: ["bò lúc lắt", …]
+SELECT count(*) …, json_agg(… ORDER BY score DESC, id ASC LIMIT $3 OFFSET $4)
+COMMIT</code></pre></li>
+        <li><span class="who spa">SPA</span>6 món: Bò lúc lắc 0.667, Cơm bò lúc lắc 0.5, Cơm tấm bò lúc lắc 0.4, Cơm niêu bò lúc lắc 0.381, Cơm bò lúc lắc phần lớn 0.333, Lẩu bò 0.308.
+          <div class="branch">"pho bo tai" (không dấu) → 0 món, kèm gợi ý gõ có dấu: giống "Phở bò tái" ≈ 0.22 &lt; 0.3.</div></li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>H. Reload, mở lại link, URL sửa tay</h3>
+      <ol class="flow">
+        <li><span class="who br">Browser</span>Reload <code>/dishes?q=phở&amp;page=2</code> → Vite trả <code>index.html</code>, SPA đọc URL → đúng trang 2 của "phở" (ô tìm có sẵn "phở").</li>
+        <li><span class="who br">Browser</span>Reload <code>/dishes?q=phở&amp;view=more</code> → tải lại <strong>từ đầu</strong> (12 món), giữ điều kiện — chính sách đã công bố cho Tải thêm / Cuộn.</li>
+        <li><span class="who br">Browser</span>Sửa tay <code>?page=0</code> hoặc <code>?mode=advanced&amp;minPrice=abc</code> → <code>VALIDATION_FAILED</code> → lỗi cạnh ô + "Điều kiện tìm không hợp lệ" + "Xoá bộ lọc"; không trang trắng.
+          <div class="branch"><code>?page=101</code> → "Trang 101 không có món nào." + link "Về trang cuối (100)".</div></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. DEMO ============ -->
+<section id="demo">
+  <h2><span class="num">4</span>Kịch bản demo (dữ liệu seed chuẩn)</h2>
+  <div class="callout warn">
+    Chuẩn bị: <code>npx prisma db seed</code> trong <code>api/</code>; API <code>npm run dev</code> (thêm <code>LOG_SQL=1</code> vào <code>api/.env</code> nếu muốn chiếu SQL trên terminal); SPA <code>npm run build &amp;&amp; npm run preview</code> trong <code>web/</code>.
+    Mở DevTools → Network, lọc <strong>Fetch/XHR</strong>, bật <strong>Disable cache</strong>; bấm vào request <code>dishes?…</code> → tab Preview để chỉ <code>items</code> (12) và <code>total</code>.
+  </div>
+
+  <h3>Phần 1 — Bảng nghiệm thu của đề</h3>
+  <div class="card">
+    <ol class="demo">
+      <li><span class="crit">Ba kiểu UI</span> Mở <code>http://localhost:5173/dishes</code>. <span class="see">Thấy được: "1200 món", 12 món (Phở bò tái đầu tiên), dải 1 2 … 100; Network chỉ 1 request <code>dishes?mode=basic&amp;pageSize=12</code> ≈ 6 KB, Preview: <code>items</code> 12, <code>total</code> 1200.</span></li>
+      <li>Bấm trang <strong>2</strong>. <span class="see">Thấy được: URL <code>?page=2</code>; request <code>…&amp;page=2&amp;pageSize=12</code>; "Món 13–24 trong 1200 món"; trang cuộn về đầu danh sách.</span> Bấm <strong>100</strong> → <span class="see">"Món 1189–1200", nút Sau bị khoá.</span> Terminal (LOG_SQL): <span class="see"><code>LIMIT $1 OFFSET $2</code>, <code>params: ["12","1188"]</code>.</span></li>
+      <li>Bấm "Tải thêm" ở công tắc. Bấm nút <strong>Tải thêm</strong> 2 lần. <span class="see">Thấy được: 12 → 24 → 36 món (nối, không thay), "Đã hiện 36/1200 món", URL vẫn <code>?view=more</code>; Network: <code>page=1</code>, <code>2</code>, <code>3</code>, mỗi trang một lần.</span> Bấm thật nhanh nhiều lần → <span class="see">nút khoá "Đang tải thêm…", mỗi trang vẫn chỉ một request.</span></li>
+      <li>Bấm "Cuộn vô hạn", cuộn xuống. <span class="see">Thấy được: gần cuối danh sách tự có request <code>page=2</code>, <code>3</code>…, món mới hiện dần; vẫn có nút "Tải thêm" dự phòng.</span></li>
+      <li>Ở Tải thêm, bấm chip <strong>Lẩu</strong>, bấm Tải thêm tới hết. <span class="see">Thấy được: "Đã hiện hết 61 món.", không còn nút, không có request <code>page=7</code>; trong danh sách có "Combo 100% bò" (id 560, ở trang 2) — có tag Lẩu dù tên không chứa chữ "lẩu".</span></li>
+      <li><span class="crit">Filter / sort</span> Về Số trang, vào trang 2, chọn <strong>Giá thấp → cao</strong>. <span class="see">Thấy được: URL bỏ <code>page</code> (về trang 1); đầu danh sách là 4 món 0đ — Trà đá (id 300), Rau sống, Nước sâm, Đá viên (id 1100) — cùng giá nên xếp theo id; rồi Nước mía 15.000đ. Sắp xếp áp dụng cho cả 1.200 món, không riêng 12 món đang xem.</span></li>
+      <li>Chọn "Nâng cao", <strong>Giá từ 0 đến 0</strong>, Tìm. <span class="see">Thấy được: 4 món (0 là tiêu chí, không bị bỏ).</span> Xoá giá, chip Lẩu, Trạng thái <strong>Tạm hết</strong>. <span class="see">Thấy được: 12 món, mọi món có nhãn "Tạm hết" (<code>available=false</code> có hiệu lực).</span></li>
+      <li><span class="crit">Chuyển trang sau search</span> "Xoá bộ lọc", tìm <strong>phở</strong>. <span class="see">Thấy được: "54 món khớp điều kiện cho “phở”", 5 trang.</span> Bấm trang 2, rồi 5. <span class="see">Thấy được: URL <code>?q=phở&amp;page=5</code> giữ từ khoá; trang 5 có 6 món; mọi request đều có <code>q=phở</code>.</span></li>
+      <li><strong>Không trộn kết quả:</strong> Network → <strong>Slow 3G</strong>. Ở Tải thêm, bấm Tải thêm rồi bấm ngay chip <strong>Đồ uống</strong>. <span class="see">Thấy được: request cũ "(canceled)"; danh sách chỉ có món Đồ uống ("Đã hiện 12/86 món"), không lẫn món cũ.</span> Network → <strong>Offline</strong>, bấm Tải thêm → <span class="see">thông báo lỗi, 12 món vẫn còn, nút "Thử lại".</span> Về No throttling, bấm Thử lại → <span class="see">tải đúng trang 2.</span></li>
+      <li><span class="crit">Xoá điều kiện, Reload, mở lại link</span> Ở <code>?q=phở&amp;page=2</code>: <strong>Reload</strong> → <span class="see">đúng trang 2 của "phở".</span> Copy URL sang tab mới → <span class="see">như trên.</span> Back / Forward → <span class="see">về đúng điều kiện trước / sau.</span> Ở <code>?q=phở&amp;view=more</code> đã tải 36 món, Reload → <span class="see">tải lại từ đầu 12 món, giữ "phở" (chính sách đã công bố).</span> "Xoá bộ lọc" → <span class="see">1200 món.</span></li>
+      <li>Sửa tay URL <code>/dishes?page=0</code>, <code>/dishes?mode=advanced&amp;minPrice=abc</code>, <code>/dishes?page=101</code>. <span class="see">Thấy được: lỗi cạnh ô giá / "Số trang phải là số nguyên dương." + "Xoá bộ lọc"; trang 101 → "Trang 101 không có món nào." + link về trang 100.</span></li>
+    </ol>
+  </div>
+
+  <h3 style="margin-top:16px">Phần 2 — Bốn chế độ search</h3>
+  <div class="card">
+    <ol class="demo" start="12">
+      <li><strong>Cơ bản:</strong> tìm <code>100%</code> → <span class="see">chỉ "Combo 100% bò".</span> Tìm <code>Trà_</code> → <span class="see">chỉ "Trà_sữa nhà làm".</span> Tìm <code>LÚC LẮC</code> → <span class="see">10 món (không phân biệt hoa thường).</span> Chuyển sang "Nâng cao", giữ <code>lúc lắc</code>, không chọn gì thêm → <span class="see">cùng 10 món.</span></li>
+      <li><strong>Nâng cao:</strong> <code>gỏi</code> + Tag Hải sản + giá 50000–150000 + Còn phục vụ + Giá thấp → cao → <span class="see">14 món; trang 2 có 2 món; Preview: <code>total</code> 14.</span> Giá từ 200000, giá đến 100000 → <span class="see">"Giá đến phải lớn hơn hoặc bằng giá từ." cạnh ô giá đến.</span></li>
+      <li><strong>Toàn văn:</strong> chọn "Toàn văn", để trống, Tìm → <span class="see">"Nhập từ khoá để tìm.", Network không có request.</span> Tìm <code>nước dùng xương</code> → <span class="see">62 món, mỗi món có "phù hợp …", ô sắp xếp khoá; đầu tiên "Hủ tiếu xương khô" — ba từ có mặt nhưng không liền nhau.</span> Tìm <code>cá kho tộ</code> → <span class="see">11 món; 10 món cùng 1.000 xếp theo id: 8 "Cá kho tộ", 80, 109, 201, 342…</span></li>
+      <li><strong>Gần đúng:</strong> <code>bò lúc lắt</code> → <span class="see">6 món, "Bò lúc lắc" 0.667 đầu tiên, thấp nhất "Lẩu bò" 0.308 (≥ 0.3).</span> <code>pho bo tai</code> → <span class="see">0 món + gợi ý gõ có dấu (giới hạn đã công bố).</span></li>
+      <li><strong>SQL tại PostgreSQL:</strong> terminal <code>node scripts/run-sql.js prisma/sql/search-examples.sql</code> → <span class="see">14 kết quả, so với các dòng "Kỳ vọng" trong file.</span> Hoặc chỉ terminal API khi bật <code>LOG_SQL=1</code>.</li>
+      <li><strong>Lỗi nhóm phát hiện:</strong> <code>node scripts/run-sql.js prisma/sql/wildcard-escape.sql</code> → <span class="see">chưa escape: <code>%</code> 1200, <code>_</code> 1200, <code>Trà_</code> 23 món; đã escape: mỗi trường hợp 1 món.</span> (Chi tiết mục 5.)</li>
+    </ol>
+  </div>
+
+  <h3 style="margin-top:16px">Phần 3 — Tag và chức năng cũ (không hồi quy)</h3>
+  <div class="card">
+    <ol class="demo" start="18">
+      <li><strong>Admin món:</strong> <code>/admin/dishes</code> → <span class="see">20 món/trang, id 1200 ở đầu (mới nhất trước), 60 trang.</span> Tìm <code>lẩu</code> → <span class="see">61 món (tên hoặc tag), "Combo 100% bò" có trong kết quả.</span> Vào trang 3, sửa một món, Lưu → <span class="see">quay về đúng trang 3 + "Đã lưu thay đổi của món.", dòng được tô.</span></li>
+      <li><strong>Thêm tag trong form:</strong> <code>/admin/chefs/new</code>, gõ tên, ô tìm tag gõ "Món Huế" → <span class="see">không có;</span> bấm "+ Thêm tag" → "Thêm và chọn" → <span class="see"><code>POST /api/tags</code>, tag mới đã tick sẵn, tên vẫn còn.</span> Thêm lại "món huế" → <span class="see">"Đã có tag tên này." (không phân biệt hoa thường).</span></li>
+      <li><strong>Đầu bếp đúng chuyên môn:</strong> <code>/admin/dishes/new</code>, tick tag <strong>Lẩu</strong> → <span class="see">các đầu bếp chuyên Lẩu lên đầu danh sách, nhãn "Đúng chuyên môn".</span></li>
+      <li><strong>Chức năng block6:</strong> <code>/admin/ingredients/1/delete</code> ("Thịt bò") → <span class="see">liệt kê món đang dùng, không có nút Xoá.</span> <code>/admin/chefs/7/delete</code> ("Bùi Thanh Tâm", 0 món) → <span class="see">xoá được ngay.</span> Tắt API → <span class="see">"Không tải được dữ liệu" + Thử lại ở cả Số trang và Tải thêm.</span></li>
+      <li><strong>Responsive:</strong> DevTools → iPhone. <span class="see">Thấy được: phân trang rút gọn "← Trước · Trang 2/100 · Sau →", chip tag cuộn ngang, bảng admin thành thẻ, không cuộn ngang trang.</span></li>
+      <li>Sau buổi demo: <code>npx prisma db seed</code> để đưa dữ liệu về như ban đầu (tag vừa thêm không xoá được qua API).</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 5. LỖI ============ -->
+<section id="loi">
+  <h2><span class="num">5</span>Lỗi đã phát hiện và cách sửa</h2>
+  <div class="card">
+    <h3>Lỗi chính: ký tự người dùng gõ bị hiểu là wildcard (bước 7)</h3>
+    <div class="table-wrap"><table>
+      <tr><td><strong>Tái hiện</strong></td><td>Bản đầu: <code>where: { name: { contains: q, mode: "insensitive" } }</code>. <span class="m get">GET</span> <code>/api/dishes?q=%25</code> và <code>?q=_</code> → <strong>total 1200</strong>; <code>?q=Trà_</code> → nhiều món "Trà …" (vd. "Trà matcha sữa") thay vì chỉ "Trà_sữa nhà làm".</td></tr>
+      <tr><td><strong>Nguyên nhân</strong></td><td>Prisma sinh <code>"name" ILIKE ('%' || $1 || '%')</code> và đưa <code>$1</code> nguyên vẹn: <code>%</code> = chuỗi bất kỳ, <code>_</code> = một ký tự bất kỳ. Tham số bind chống SQL injection, không giữ nghĩa "chứa đúng chuỗi". Agent viết theo mặc định của Prisma, không kiểm chứng.</td></tr>
+      <tr><td><strong>Cách sửa</strong></td><td><code>escapeLike</code> (<code>api/src/validators/list-query.js</code>): <code>\</code> → <code>\\</code>, <code>%</code> → <code>\%</code>, <code>_</code> → <code>\_</code> trong một lượt thay thế, trước khi đưa vào <code>contains</code>. Dấu <code>\</code> là ký tự escape mặc định của LIKE/ILIKE. Áp dụng cho cả tìm tên và tìm tag (admin).</td></tr>
+      <tr><td><strong>Bằng chứng sau khi sửa</strong></td><td><code>?q=%25</code> → 1 món (560), <code>?q=_</code> và <code>?q=Trà_</code> → 1 món (700), <code>?q=%5C</code> → 1 món (960); log SQL: <code>params: ["100\\%", …]</code>; <code>wildcard-escape.sql</code> chạy cả hai phiên bản trên database (1200 / 1200 / 23 → 1 / 1 / 1 / 1); <code>check-api.sh</code> phần D kiểm tra lại mỗi lần chạy.</td></tr>
+    </table></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <h3>Các lỗi khác tìm ra trong lúc làm (đã sửa, ghi trong <code>BUILD_LOG.md</code>)</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Bước</th><th>Hiện tượng</th><th>Nguyên nhân → cách sửa</th></tr>
+      <tr><td>5</td><td>"Cánh gà" bị gắn tag Hải sản</td><td>Chuỗi "cá" nằm trong "Cánh"; <code>\b</code> của JavaScript không hiểu chữ có dấu → so khớp theo cả từ <code>(?&lt;!\p{L})…(?!\p{L})</code></td></tr>
+      <tr><td>8</td><td>Fuzzy "Gỏi cuống tôm thịt" trả kèm "Gỏi tôm tôm thịt"</td><td>Bộ sinh ghép phần chính và kiểu món trùng chữ → bỏ tên có từ lặp liền nhau, seed lại</td></tr>
+      <tr><td>7</td><td>Lần gọi đầu sau khi pool nguội trả 500</td><td>Mở kết nối + bắt đầu transaction quá 2s mặc định (P2028) → <code>maxWait</code> 10s</td></tr>
+      <tr><td>13</td><td>Đổi điều kiện ở Tải thêm: danh sách cũ còn hiện thêm ~0,5s</td><td>State chưa gắn với bộ điều kiện → state ghi kèm <code>key</code>, lệch thì hiện "đang tải" ngay lần render đầu</td></tr>
+      <tr><td>9, 15</td><td>Bảng admin món tràn khung (1280px, rồi 821–1023px)</td><td>Cột Tag dài hơn cột Loại cũ → cho cột Tên, Tag, Đầu bếp xuống dòng; thu đệm ô ở 821–1023px</td></tr>
+      <tr><td>15</td><td>Chuyển trang không cuộn tới đầu danh sách</td><td>Khung xương 6 dòng làm trang thấp đi → khung xương 12 dòng = một trang</td></tr>
+      <tr><td>16</td><td>Đường kẻ dưới mỗi món cong ở hai đầu</td><td><code>border-radius</code> của hiệu ứng nổi đặt sẵn → chỉ bo góc khi rê chuột</td></tr>
+      <tr><td>17</td><td>Toàn văn "cá kho tộ": 10 món cùng hiện 1.000 nhưng id lộn xộn (8, 109, 201, 80…)</td><td><code>ts_rank</code> là float4, khác nhau ở sai số → làm tròn 3 chữ số trong SQL rồi mới xếp; thêm kiểm tra vào <code>check-api.sh</code> D</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<footer class="end">Block 7 · Tìm kiếm và phân trang</footer>
+</div>
+</body>
+</html>

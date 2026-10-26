@@ -4,16 +4,16 @@ URL trang: /dishes?page=101
 === GET /api/dishes?mode=basic&page=101&pageSize=12
 Response: ok: true, items: 0, total: 1200, page: 101, pageSize: 12, id: []
 
-[SQL 30ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
+[SQL 26ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
           params: ["0"]
-[SQL 29ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
+[SQL 27ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
           params: ["12","1200"]
-[SQL 45ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN (NULL) OFFSET $1
+[SQL 32ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN (NULL) OFFSET $1
           params: ["0"]
-[SQL 70ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN (NULL) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $1
+[SQL 86ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN (NULL) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $1
           params: ["0"]
-[SQL 29ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN (NULL) OFFSET $1
+[SQL 58ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN (NULL) OFFSET $1
           params: ["0"]
-[SQL 27ms] COMMIT
+[SQL 26ms] COMMIT
           params: []
 

@@ -4,7 +4,9 @@
 // - Document tính ngay trong câu truy vấn (không thêm cột tsvector — plan mục 3.2); coalesce vì description có thể NULL.
 //   Tên nặng hơn mô tả (setweight A / D) → món có từ khoá trong tên xếp trước.
 // - plainto_tsquery: chữ người dùng nhập là văn bản thường (không phải cú pháp & | !), các từ nối bằng AND.
-// - Thứ tự: điểm ts_rank giảm dần rồi id tăng dần → thứ tự xác định khi chia trang.
+// - Thứ tự: điểm giảm dần rồi id tăng dần → thứ tự xác định khi chia trang. Điểm làm tròn 3 chữ số NGAY trong SQL:
+//   ts_rank là float4, 10 món "cá kho tộ" chỉ khác nhau ở sai số (đều in ra 1) — xếp theo phần lẻ đó thì người dùng
+//   thấy cùng điểm 1.000 mà id lộn xộn. Cùng một giá trị vừa để sắp xếp vừa trả cho SPA (bước 17).
 // Một câu SQL trả cả `total` và id + điểm của trang: cùng một ảnh chụp dữ liệu, một vòng mạng.
 // Tagged template $queryRaw → q, take, skip là tham số bind, không nối vào chuỗi SQL.
 export async function fulltextPage(prisma, q, skip, take) {
@@ -17,7 +19,7 @@ export async function fulltextPage(prisma, q, skip, take) {
       FROM dishes d
     ),
     matched AS (
-      SELECT docs.id, ts_rank(docs.document, input.query) AS score
+      SELECT docs.id, round(ts_rank(docs.document, input.query)::numeric, 3) AS score
       FROM docs CROSS JOIN input
       WHERE docs.document @@ input.query
     )

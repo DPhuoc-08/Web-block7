@@ -4,64 +4,64 @@ URL trang: /dishes?view=scroll
 === GET /api/dishes?mode=basic&page=1&pageSize=12
 Response: ok: true, items: 12, total: 1200, page: 1, pageSize: 12, id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
-[SQL 30ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
+[SQL 27ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
           params: ["0"]
-[SQL 58ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
+[SQL 38ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
           params: ["12","0"]
-[SQL 42ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
+[SQL 28ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
           params: [1,1,5,1,5,2,5,2,4,4,2,4,"0"]
-[SQL 69ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
+[SQL 61ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
           params: [1,2,3,4,5,6,7,8,9,10,11,12,"0"]
-[SQL 32ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) OFFSET $27
+[SQL 35ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) OFFSET $27
           params: [1,1,2,2,2,2,2,3,3,3,4,4,5,6,6,8,14,14,15,15,15,16,16,16,16,16,"0"]
-[SQL 88ms] COMMIT
+[SQL 30ms] COMMIT
           params: []
 
 === GET /api/dishes?mode=basic&page=2&pageSize=12
 Response: ok: true, items: 12, total: 1200, page: 2, pageSize: 12, id: [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
 
-[SQL 31ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
+[SQL 39ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
           params: ["0"]
-[SQL 37ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
+[SQL 34ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
           params: ["12","12"]
-[SQL 29ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
+[SQL 40ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
           params: [4,4,2,3,3,6,6,6,13,16,17,8,"0"]
-[SQL 57ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
+[SQL 65ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
           params: [13,14,15,16,17,18,19,20,21,22,23,24,"0"]
-[SQL 42ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) OFFSET $22
+[SQL 31ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) OFFSET $22
           params: [2,3,4,5,5,5,8,10,10,10,11,11,11,12,13,13,13,14,16,16,16,"0"]
-[SQL 30ms] COMMIT
+[SQL 27ms] COMMIT
           params: []
 
 === GET /api/dishes?mode=basic&page=3&pageSize=12
 Response: ok: true, items: 12, total: 1200, page: 3, pageSize: 12, id: [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]
 
-[SQL 29ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
+[SQL 46ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
           params: ["0"]
-[SQL 35ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
+[SQL 34ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
           params: ["12","24"]
-[SQL 37ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
+[SQL 41ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
           params: [9,36,11,10,15,14,20,31,12,22,21,45,"0"]
 [SQL 65ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
           params: [25,26,27,28,29,30,31,32,33,34,35,36,"0"]
-[SQL 31ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) OFFSET $21
+[SQL 26ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) OFFSET $21
           params: [1,1,2,2,3,3,4,4,5,6,7,11,12,12,12,12,12,12,14,16,"0"]
-[SQL 34ms] COMMIT
+[SQL 25ms] COMMIT
           params: []
 
 === GET /api/dishes?mode=basic&page=4&pageSize=12
 Response: ok: true, items: 12, total: 1200, page: 4, pageSize: 12, id: [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]
 
-[SQL 29ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
+[SQL 28ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE 1=1 OFFSET $1) AS "sub"
           params: ["0"]
-[SQL 29ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
+[SQL 28ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE 1=1 ORDER BY "public"."dishes"."id" ASC LIMIT $1 OFFSET $2
           params: ["12","36"]
-[SQL 35ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
+[SQL 29ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) OFFSET $13
           params: [18,26,24,32,25,33,51,41,19,37,27,44,"0"]
-[SQL 64ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
+[SQL 55ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $13
           params: [37,38,39,40,41,42,43,44,45,46,47,48,"0"]
-[SQL 35ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) OFFSET $25
+[SQL 33ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) OFFSET $25
           params: [1,1,1,2,4,4,4,5,6,6,9,9,12,12,12,12,12,12,12,13,15,15,15,16,"0"]
-[SQL 32ms] COMMIT
+[SQL 66ms] COMMIT
           params: []
 

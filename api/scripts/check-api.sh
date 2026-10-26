@@ -446,6 +446,10 @@ part_d() {
   expect "fulltext bỏ qua sort và tiêu chí advanced (vẫn xếp theo điểm, không lỗi tag)" 200 ".ok and .data.total == $ft_total and (.data.items | [.[] | {id, score}] | $by_score)"
   req GET "/api/dishes?mode=fulltext&q=pho"
   expect "fulltext \"pho\" (không dấu) → 0 món: cấu hình simple không bỏ dấu" 200 '.data.total == 0'
+  # ts_rank là float4: 10 món "cá kho tộ" chỉ khác nhau ở sai số (in ra đều là 1) → điểm làm tròn 3 chữ số trong SQL,
+  # cùng điểm hiển thị thì xếp theo id (bước 17).
+  req GET "/api/dishes?mode=fulltext&q=c%C3%A1%20kho%20t%E1%BB%99"
+  expect "fulltext \"cá kho tộ\": 10 món cùng điểm 1.000 → xếp theo id tăng dần (8, 80, 109, 201, 342…)" 200 ".data.total == 11 and (.data.items | [.[] | {id, score}] | $by_score) and ([.data.items[:5][].id] == [8,80,109,201,342])"
   req GET "/api/dishes?mode=fulltext&q=ph%E1%BB%9F&pageSize=1"
   expect "fulltext \"phở\" → món có \"phở\" trong tên xếp đầu" 200 '.data.total > 0 and (.data.items[0].name | test("phở"; "i"))'
   req GET "/api/dishes?mode=fulltext&q=x&page=0"
