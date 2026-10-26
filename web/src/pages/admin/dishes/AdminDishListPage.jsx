@@ -6,7 +6,7 @@ import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
 import { Loading, LoadError } from "../../../components/StatusView.jsx";
 import AdminNav from "../../../components/AdminNav.jsx";
 import { useJustSaved } from "../../../hooks/useJustSaved.js";
-import { formatPrice } from "../../../format.js";
+import { formatPrice, tagNames } from "../../../format.js";
 import DishImage from "../../../components/DishImage.jsx";
 
 // Danh sách quản trị món (/admin/dishes). Tự tải mỗi lần mở → sau khi thêm/sửa/xoá quay lại luôn thấy dữ liệu mới.
@@ -14,8 +14,8 @@ export default function AdminDishListPage() {
   useDocumentTitle("Quản trị món ăn");
   const [searchParams] = useSearchParams();
   const q = searchParams.get("q")?.trim() ?? "";
-  // Admin tìm cả tên và loại (như admin block5); trang người dùng chỉ tìm theo tên.
-  const { status, data: dishes, reload } = useLoad((signal) => listDishes({ q, searchIn: q ? "name,category" : "" }, { signal }), [q]);
+  // Admin tìm cả tên món và tên tag (như admin block5 tìm cả loại); trang người dùng chỉ tìm theo tên.
+  const { status, data: dishes, reload } = useLoad((signal) => listDishes({ q, searchIn: q ? "name,tag" : "" }, { signal }), [q]);
   const { savedId, savedRowRef } = useJustSaved();
 
   return (
@@ -28,7 +28,7 @@ export default function AdminDishListPage() {
         </Link>
       </div>
 
-      <AdminSearch label="Tìm món" placeholder="Tìm theo tên hoặc loại món" count={status === "ok" ? dishes.length : null} />
+      <AdminSearch label="Tìm món" placeholder="Tìm theo tên món hoặc tag" count={status === "ok" ? dishes.length : null} />
 
       {status === "loading" && <Loading />}
       {status === "error" && <LoadError onRetry={reload} />}
@@ -42,7 +42,7 @@ export default function AdminDishListPage() {
                 <th>Ảnh</th>
                 <th>Tên</th>
                 <th>Giá</th>
-                <th>Loại</th>
+                <th>Tag</th>
                 <th>Đầu bếp</th>
                 <th>Tình trạng</th>
                 <th>
@@ -65,7 +65,7 @@ export default function AdminDishListPage() {
                     <Link to={`/admin/dishes/${d.id}/edit`}>{d.name}</Link>
                   </td>
                   <td data-label="Giá">{formatPrice(d.price)}</td>
-                  <td data-label="Loại">{d.category ?? "—"}</td>
+                  <td data-label="Tag">{tagNames(d.tags)}</td>
                   <td data-label="Đầu bếp">{d.chef.name}</td>
                   <td data-label="Tình trạng">
                     <span className={`badge ${d.available ? "on" : "off"}`}>{d.available ? "Đang phục vụ" : "Tạm hết"}</span>

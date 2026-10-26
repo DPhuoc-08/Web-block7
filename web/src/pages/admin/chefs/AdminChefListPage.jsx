@@ -6,6 +6,7 @@ import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
 import { Loading, LoadError } from "../../../components/StatusView.jsx";
 import AdminNav from "../../../components/AdminNav.jsx";
 import { useJustSaved } from "../../../hooks/useJustSaved.js";
+import { tagNames } from "../../../format.js";
 
 // Danh sách quản trị đầu bếp (/admin/chefs). Cùng khuôn với AdminDishListPage.
 export default function AdminChefListPage() {
@@ -53,7 +54,7 @@ export default function AdminChefListPage() {
                   <td className="title" data-label="Tên">
                     {c.name}
                   </td>
-                  <td data-label="Chuyên môn">{c.specialty ?? "—"}</td>
+                  <td data-label="Chuyên môn">{tagNames(c.tags)}</td>
                   <td data-label="Phụ trách">{c.dishCount} món</td>
                   <td className="actions">
                     <Link className="btn btn-sm" to={`/admin/chefs/${c.id}/edit`}>

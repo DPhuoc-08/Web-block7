@@ -13,13 +13,13 @@ export const SORTS = [
   { value: "ten", label: "Tên A → Z" },
 ];
 
-// Đọc bộ lọc từ URL của trang (/dishes?q=&category=&price=&available=1&sort=).
+// Đọc bộ lọc từ URL của trang (/dishes?q=&tag=&price=&available=1&sort=). `tag` là id tag (chuỗi số).
 // Giá trị giá / sắp xếp lạ (?price=abc) bị bỏ qua như API → không hiện "khớp bộ lọc" khi thực ra không lọc.
 const oneOf = (value, options) => (options.some((o) => o.value === value) ? value : "");
 export function readFilters(searchParams) {
   return {
     q: searchParams.get("q")?.trim() ?? "",
-    category: searchParams.get("category") ?? "",
+    tag: searchParams.get("tag") ?? "",
     price: oneOf(searchParams.get("price") ?? "", PRICE_RANGES),
     available: searchParams.get("available") === "1",
     sort: oneOf(searchParams.get("sort") ?? "", SORTS),
@@ -30,24 +30,23 @@ export function readFilters(searchParams) {
 export function filtersToParams(f) {
   const p = {};
   if (f.q) p.q = f.q;
-  if (f.category) p.category = f.category;
+  if (f.tag) p.tag = f.tag;
   if (f.price) p.price = f.price;
   if (f.available) p.available = "1";
   if (f.sort) p.sort = f.sort;
   return p;
 }
 
-export const isFiltered = (f) => Boolean(f.q || f.category || f.price || f.available || f.sort);
+export const isFiltered = (f) => Boolean(f.q || f.tag || f.price || f.available || f.sort);
 
-// Gom món theo loại, giữ thứ tự loại xuất hiện; món không có loại xếp cuối vào nhóm "Khác" (như block5).
-export function groupByCategory(dishes) {
+// Gom món theo tag đầu tiên (id nhỏ nhất = loại món), giữ thứ tự nhóm xuất hiện. Một món có nhiều tag nhưng chỉ
+// nằm trong một nhóm. (Bước 10 của plan bỏ nhóm theo loại khi thực đơn có phân trang — plan mục 10.8.)
+export function groupByMainTag(dishes) {
   const groups = new Map();
   for (const dish of dishes) {
-    const key = dish.category ?? "Khác";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(dish);
+    const tag = dish.tags[0] ?? { id: null, name: "Khác" };
+    if (!groups.has(tag.id)) groups.set(tag.id, { tag, dishes: [] });
+    groups.get(tag.id).dishes.push(dish);
   }
-  return [...groups]
-    .map(([name, items]) => ({ name, dishes: items }))
-    .sort((a, b) => (a.name === "Khác") - (b.name === "Khác"));
+  return [...groups.values()].sort((a, b) => (a.tag.id === null) - (b.tag.id === null));
 }

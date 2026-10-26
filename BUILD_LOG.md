@@ -83,3 +83,32 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - Seed lại sau khi test (tag test không xoá được qua API): 20/7/30/16, 0 món sai chuyên môn.
 
 **Trạng thái:** SPA vẫn đọc `category`, `specialty`, `/api/categories` → trang thực đơn, form món, form đầu bếp chưa chạy với API mới. Sửa ở bước 4.
+
+## Bước 4 — SPA theo tag
+**Đã làm:**
+- `api/tags.js` thay `api/categories.js` (đã xoá): `listTags`, `createTag`.
+- `components/QuickAdd.jsx` (đổi tên từ `QuickAddIngredient.jsx`, viết lại dạng dùng chung): nhận `fields` (ô nào có `requiredMessage` là bắt buộc) và `create(values)`. Dùng cho thêm nhanh nguyên liệu (tên + đơn vị) và thêm nhanh tag (tên). Id tiêu đề lấy từ `useId` vì form món có thể mở cùng lúc hai khung.
+- `components/TagPicker.jsx` (mới): tick nhiều tag, ô lọc tại chỗ (không dấu), "Đã chọn N tag", "+ Thêm tag" → `POST /api/tags` → tag mới vào danh sách và được tick sẵn.
+- Form món: ô chọn loại → `TagPicker` (bắt buộc ≥ 1, SPA chặn khi trống); gửi `tagIds`. Danh sách đầu bếp: người có chuyên môn trùng tag đang chọn lên đầu, kèm nhãn "Đúng chuyên môn" và dòng chuyên môn; khi chưa chọn tag có câu gợi ý.
+- Form đầu bếp: ô chữ "Chuyên môn" → `TagPicker` (bắt buộc ≥ 1); gửi `{ name, tagIds }`; trang tải thêm `GET /api/tags`.
+- Hiển thị tag: thẻ món ở thực đơn, trang chi tiết (tag của món, chuyên môn của đầu bếp, nút "Xem thêm <tag loại món>" → `/dishes?tag=<id>`), bảng admin món (cột Tag), bảng admin đầu bếp (cột Chuyên môn).
+- Thực đơn: chip = tag đang có món (`dishCount > 0`), lọc bằng `?tag=<id>`; nhóm theo tag đầu tiên (loại món), dòng món không lặp lại tag của nhóm. Admin món tìm bằng `searchIn=name,tag`.
+- `format.js`: thêm `plain` (chuyển từ form món, dùng chung cho ô lọc nguyên liệu và tag), `tagNames` ("Món nước · Miền Bắc"). CSS: nhãn `.fit-label`, khung thêm nhanh một ô.
+
+**Quyết định và lý do:**
+- **Gom hai khung thêm nhanh về một component** (plan mục 6.6): hai khung giống nhau trừ số ô; giữ hai bản sẽ phải sửa lỗi hai lần.
+- **Đầu bếp phù hợp lên đầu, không ẩn người khác**: API không bắt buộc đúng chuyên môn (nhóm chốt), admin vẫn chọn được bất kỳ ai.
+- **Nhóm thực đơn theo tag đầu tiên** để trang vẫn giống block6 ở bước này. Bước 10 bỏ nhóm khi thực đơn có phân trang (plan mục 10.8).
+- **Nút "Xem thêm Món nước"** thay cho "Xem thêm món cùng loại": tên tag đã chứa chữ "Món", ghép kiểu "Xem thêm món món nước" bị lặp.
+
+**Đã kiểm tra** (Chrome headless qua DevTools Protocol, kịch bản tự viết, API :3000 + Vite :5173):
+- Kịch bản chính: **22/22 đạt**. Thực đơn 20 món nhóm theo tag; chip không có Lẩu, Hải sản; chip Miền Trung → `?tag=15`, 3 món; chi tiết `/dishes/2` có tag + chuyên môn; form món trống → lỗi tag; tick Miền Trung → Võ Thị Mai lên đầu có nhãn; thêm tag mới từ ô tìm → tick sẵn; lưu → dòng mới có cột Tag đúng; sửa tag → bảng đổi; admin tìm "miền trung" → 3 món; form đầu bếp thiếu chuyên môn → lỗi; lưu → "Món nướng · Hải sản"; form sửa tick sẵn; xoá món và đầu bếp test; không lỗi console.
+- Kịch bản hồi quy: **8/8 đạt**. Thêm nhanh nguyên liệu (tên trống → lỗi SPA; "tỏi" → lỗi trùng từ API; tên mới → tick sẵn); form món 375px không cuộn ngang; trang xoá đầu bếp còn món vẫn liệt kê món + ô chọn người nhận; bảng đầu bếp có chuyên môn dạng tag.
+- `vite build` thành công. Seed lại sau khi test.
+
+**Lỗi trong kịch bản kiểm tra (không phải lỗi app):** `waitFor` dùng `returnByValue` nên `querySelector(...)` (phần tử DOM) luôn ra `undefined` → chờ mãi; sửa bằng `!!(…)`. Ô lọc "mien" ra 4 tag chứ không phải 3: "Tráng miệng" bỏ dấu thành "trang mieng" chứa "mien" — app đúng, kỳ vọng của kịch bản sai.
+
+**Phát hiện: độ trễ của database ở Sydney.** Kịch bản chờ 10s vẫn hết giờ ở lần đầu mở thực đơn. Đo:
+- Mở kết nối TCP tới pooler: block7 (ap-southeast-2, Sydney) trung bình **322ms**; block6 (ap-southeast-1, Singapore) **132ms**.
+- API khi kết nối đã "ấm": `/api/tags` (1 truy vấn) 0,27s; `/api/dishes` (4 truy vấn: món, đầu bếp, liên kết tag, tag) ~1s; `/api/dishes/2` ~1,2s. Lần đầu sau khi pool nguội: 2,1–2,7s.
+- Mỗi truy vấn tốn ít nhất một vòng mạng, nên phân trang (đếm `total` + lấy `items` + tag + đầu bếp) sẽ chậm tương ứng. Đã báo nhóm để chọn: tạo lại project ở Singapore (DB mới chỉ có schema + seed tạo bằng script) hoặc giữ Sydney.

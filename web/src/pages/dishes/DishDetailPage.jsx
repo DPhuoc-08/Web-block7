@@ -3,7 +3,7 @@ import { getDish } from "../../api/dishes.js";
 import { useLoad } from "../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle.js";
 import { Loading, LoadError, NotFoundMessage } from "../../components/StatusView.jsx";
-import { formatPrice } from "../../format.js";
+import { formatPrice, tagNames } from "../../format.js";
 import DishImage from "../../components/DishImage.jsx";
 
 // Chi tiết món (/dishes/:id). Id đọc từ URL → mở tab mới, gửi link, Reload hay Back đều ra đúng món.
@@ -39,7 +39,7 @@ export default function DishDetailPage() {
         </figure>
 
         <div className="detail-info">
-          {dish.category && <span className="tag">{dish.category}</span>}
+          <span className="tag">{tagNames(dish.tags)}</span>
           <h1>{dish.name}</h1>
           <div className="price-line">
             <span className="detail-price">{formatPrice(dish.price)}</span>
@@ -50,12 +50,12 @@ export default function DishDetailPage() {
           <dl className="facts">
             <dt>Mã món</dt>
             <dd>#{dish.id}</dd>
-            <dt>Loại</dt>
-            <dd>{dish.category ?? "—"}</dd>
+            <dt>Tag</dt>
+            <dd>{tagNames(dish.tags)}</dd>
             <dt>Đầu bếp</dt>
             <dd>
               {dish.chef.name}
-              {dish.chef.specialty && <span className="muted normal"> · {dish.chef.specialty}</span>}
+              <span className="muted normal"> · {tagNames(dish.chef.tags)}</span>
             </dd>
             <dt>Tình trạng</dt>
             <dd>{dish.available ? "Đang phục vụ" : "Tạm hết"}</dd>
@@ -74,9 +74,10 @@ export default function DishDetailPage() {
             </section>
           )}
 
-          {dish.category && (
-            <Link className="btn" to={`/dishes?category=${encodeURIComponent(dish.category)}`}>
-              Xem thêm món cùng loại
+          {/* Tag đầu tiên (id nhỏ nhất) là loại món → gợi ý xem các món cùng loại. */}
+          {dish.tags.length > 0 && (
+            <Link className="btn" to={`/dishes?tag=${dish.tags[0].id}`}>
+              Xem thêm {dish.tags[0].name}
             </Link>
           )}
         </div>

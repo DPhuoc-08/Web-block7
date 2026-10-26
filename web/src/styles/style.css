@@ -326,3 +326,9 @@ tbody tr.just-saved { scroll-margin-block: 96px; }
   .table-wrap tbody tr.just-saved:hover { background: var(--primary-soft); }
   .table-wrap tr.just-saved td { background: transparent; }
 }
+
+/* ===== Bổ sung block7 ===== */
+/* Form món: nhãn cạnh đầu bếp có chuyên môn trùng tag đã chọn (đưa lên đầu danh sách). */
+.choice span small.fit-label { color: var(--ok); font-weight: 600; }
+/* Khung thêm nhanh chỉ có một ô (thêm tag). */
+.quick-add-fields.single { grid-template-columns: 1fr; }

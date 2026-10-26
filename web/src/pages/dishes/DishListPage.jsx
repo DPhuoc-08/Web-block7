@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { listDishes } from "../../api/dishes.js";
-import { getCategories } from "../../api/categories.js";
+import { listTags } from "../../api/tags.js";
 import { toQuery } from "../../api/client.js";
 import { useLoad } from "../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle.js";
 import { Loading, LoadError } from "../../components/StatusView.jsx";
 import DishRow from "../../components/DishRow.jsx";
-import { PRICE_RANGES, SORTS, readFilters, filtersToParams, isFiltered, groupByCategory } from "../../menuOptions.js";
+import { PRICE_RANGES, SORTS, readFilters, filtersToParams, isFiltered, groupByMainTag } from "../../menuOptions.js";
 
-// Thực đơn (/dishes). Mọi tiêu chí lọc nằm trên URL của TRANG (/dishes?q=&category=&price=&available=1&sort=):
+// Thực đơn (/dishes). Mọi tiêu chí lọc nằm trên URL của TRANG (/dishes?q=&tag=&price=&available=1&sort=):
 // lưu/gửi được link kết quả, Reload hay Back vẫn ra đúng kết quả. Trang đọc URL rồi gọi
 // GET /api/dishes với cùng các tham số (URL trang và URL API là hai thứ khác nhau).
 export default function DishListPage() {
@@ -24,17 +24,18 @@ export default function DishListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => setQ(readFilters(searchParams).q), [key]);
 
-  // Hai lần tải riêng: loại món (cho chip) tải một lần khi mở trang; danh sách món tải lại mỗi khi bộ lọc trên URL đổi
-  // → chip không bị ẩn/hiện mỗi lần lọc.
-  const cats = useLoad((signal) => getCategories({ signal }), []);
+  // Hai lần tải riêng: tag (cho chip) tải một lần khi mở trang; danh sách món tải lại mỗi khi bộ lọc trên URL đổi
+  // → chip không bị ẩn/hiện mỗi lần lọc. Chip chỉ gồm tag đang có món.
+  const tags = useLoad((signal) => listTags({ signal }), []);
+  const chipTags = tags.status === "ok" ? tags.data.filter((t) => t.dishCount > 0) : [];
   const { status, data: dishes, reload } = useLoad((signal) => listDishes(filtersToParams(filters), { signal }), [key]);
 
   // Mọi điều khiển lọc áp dụng cùng một cách: đổi query trên URL → trang tự gọi lại API. Đi kèm chữ đang có
   // trong ô tên món, để danh sách luôn khớp với những gì người dùng thấy trên form.
   const next = (changes) => filtersToParams({ ...filters, q: q.trim(), ...changes });
 
-  // Chip loại: link tới URL trang với loại mới, giữ nguyên các tiêu chí khác.
-  const chipUrl = (category) => `/dishes${toQuery(next({ category }))}`;
+  // Chip tag: link tới URL trang với tag mới (id), giữ nguyên các tiêu chí khác.
+  const chipUrl = (tag) => `/dishes${toQuery(next({ tag }))}`;
   // Khoảng giá, sắp xếp, "còn phục vụ": áp dụng ngay khi đổi, như bấm chip.
   const apply = (changes) => setSearchParams(next(changes));
 
@@ -44,7 +45,7 @@ export default function DishListPage() {
     apply({});
   }
 
-  const groups = status === "ok" && !filters.sort ? groupByCategory(dishes) : null;
+  const groups = status === "ok" && !filters.sort ? groupByMainTag(dishes) : null;
 
   return (
     <>
@@ -54,14 +55,14 @@ export default function DishListPage() {
       </div>
 
       <section className="filters" aria-label="Lọc món">
-        {cats.status === "ok" && (
-          <nav className="chips" aria-label="Lọc theo loại">
-            <Link className="chip" to={chipUrl("")} aria-current={filters.category ? "false" : "true"}>
+        {tags.status === "ok" && (
+          <nav className="chips" aria-label="Lọc theo tag">
+            <Link className="chip" to={chipUrl("")} aria-current={filters.tag ? "false" : "true"}>
               Tất cả
             </Link>
-            {cats.data.used.map((c) => (
-              <Link key={c} className="chip" to={chipUrl(c)} aria-current={filters.category === c ? "true" : "false"}>
-                {c}
+            {chipTags.map((t) => (
+              <Link key={t.id} className="chip" to={chipUrl(String(t.id))} aria-current={filters.tag === String(t.id) ? "true" : "false"}>
+                {t.name}
               </Link>
             ))}
           </nav>
@@ -129,16 +130,16 @@ export default function DishListPage() {
               )}
             </div>
           ) : groups ? (
-            // Sắp xếp mặc định → nhóm theo loại như thực đơn in; chọn sắp xếp khác → một danh sách phẳng.
+            // Sắp xếp mặc định → nhóm theo tag loại món như thực đơn in; chọn sắp xếp khác → một danh sách phẳng.
             <div className="menu-columns">
               {groups.map((g) => (
-                <section key={g.name} className="menu-group">
+                <section key={g.tag.id ?? "khac"} className="menu-group">
                   <h2>
-                    {g.name} <small>{g.dishes.length} món</small>
+                    {g.tag.name} <small>{g.dishes.length} món</small>
                   </h2>
                   <div className="menu-grid">
                     {g.dishes.map((dish) => (
-                      <DishRow key={dish.id} dish={dish} showCategory={false} />
+                      <DishRow key={dish.id} dish={dish} hideTagId={g.tag.id} />
                     ))}
                   </div>
                 </section>

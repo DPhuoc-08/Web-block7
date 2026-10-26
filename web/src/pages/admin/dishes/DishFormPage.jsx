@@ -2,8 +2,8 @@ import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { getDish, createDish, updateDish } from "../../../api/dishes.js";
 import { listChefs } from "../../../api/chefs.js";
-import { listIngredients } from "../../../api/ingredients.js";
-import { getCategories } from "../../../api/categories.js";
+import { listIngredients, createIngredient } from "../../../api/ingredients.js";
+import { listTags } from "../../../api/tags.js";
 import { isBusiness } from "../../../api/client.js";
 import { useLoad } from "../../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
@@ -11,12 +11,20 @@ import { useFocusFirstError } from "../../../hooks/useFocusFirstError.js";
 import { Loading, LoadError, NotFoundMessage } from "../../../components/StatusView.jsx";
 import { FieldError, FormAlert, generalMessage } from "../../../components/FormBits.jsx";
 import DishImage from "../../../components/DishImage.jsx";
-import QuickAddIngredient from "../../../components/QuickAddIngredient.jsx";
+import QuickAdd from "../../../components/QuickAdd.jsx";
+import TagPicker from "../../../components/TagPicker.jsx";
 import LeaveConfirm from "../../../components/LeaveConfirm.jsx";
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges.js";
+import { plain, tagNames } from "../../../format.js";
+
+const INGREDIENT_FIELDS = [
+  { key: "name", label: "Tên nguyên liệu", requiredMessage: "Tên nguyên liệu không được để trống." },
+  { key: "unit", label: "Đơn vị", placeholder: "Ví dụ: kg, bó" },
+];
+const createIngredientFrom = (v) => createIngredient({ name: v.name, unit: v.unit.trim() === "" ? null : v.unit });
 
 // Form thêm (/admin/dishes/new) và sửa (/admin/dishes/:id/edit) món.
-// Trang tự tải những gì form cần: danh sách loại, đầu bếp, nguyên liệu; khi sửa thì tải thêm món theo id trên URL
+// Trang tự tải những gì form cần: danh sách tag, đầu bếp, nguyên liệu; khi sửa thì tải thêm món theo id trên URL
 // (không lấy giá trị từ trang danh sách).
 export default function DishFormPage() {
   const { id } = useParams();
@@ -26,7 +34,7 @@ export default function DishFormPage() {
   const { status, data, reload } = useLoad(
     (signal) =>
       Promise.all([
-        getCategories({ signal }),
+        listTags({ signal }),
         listChefs({}, { signal }),
         listIngredients({}, { signal }),
         isEdit ? getDish(id, { signal }) : null,
@@ -40,20 +48,20 @@ export default function DishFormPage() {
     return <NotFoundMessage title="Không tìm thấy món" text="Món cần sửa không tồn tại hoặc đã bị xoá." backTo="/admin/dishes" backLabel="Về danh sách món" />;
   }
 
-  const [categories, chefs, ingredients, dish] = data;
+  const [tags, chefs, ingredients, dish] = data;
   // key: đổi id thì dựng lại form với giá trị ban đầu mới.
-  return <DishForm key={id ?? "new"} id={id} dish={dish} categories={categories.all} chefs={chefs} ingredients={ingredients} />;
+  return <DishForm key={id ?? "new"} id={id} dish={dish} tags={tags} chefs={chefs} ingredients={ingredients} />;
 }
 
 // Giá trị form giữ dạng mà ô nhập dùng (giá là chuỗi của ô number, đầu bếp là chuỗi của radio).
 function initialValues(dish) {
   if (!dish) {
-    return { name: "", price: "", category: "", description: "", imageUrl: "", imageCredit: "", available: true, chefId: "", ingredientIds: [] };
+    return { name: "", price: "", tagIds: [], description: "", imageUrl: "", imageCredit: "", available: true, chefId: "", ingredientIds: [] };
   }
   return {
     name: dish.name,
     price: String(dish.price),
-    category: dish.category ?? "",
+    tagIds: dish.tags.map((t) => t.id),
     description: dish.description ?? "",
     imageUrl: dish.imageUrl ?? "",
     imageCredit: dish.imageCredit ?? "",
@@ -69,7 +77,7 @@ function checkRequired(v) {
   const errors = {};
   if (!v.name.trim()) errors.name = "Tên món không được để trống.";
   if (v.price.trim() === "") errors.price = "Giá không được để trống.";
-  if (!v.category) errors.category = "Vui lòng chọn loại món.";
+  if (v.tagIds.length === 0) errors.tagIds = "Vui lòng chọn ít nhất một tag.";
   if (!v.chefId) errors.chefId = "Vui lòng chọn đầu bếp phụ trách.";
   if (v.ingredientIds.length === 0) errors.ingredientIds = "Vui lòng chọn ít nhất một nguyên liệu.";
   return errors;
@@ -81,7 +89,7 @@ function toBody(v) {
   return {
     name: v.name,
     price: Number(v.price),
-    category: v.category,
+    tagIds: v.tagIds,
     description: orNull(v.description),
     imageUrl: orNull(v.imageUrl),
     imageCredit: orNull(v.imageCredit),
@@ -91,16 +99,22 @@ function toBody(v) {
   };
 }
 
-// Tìm nguyên liệu trong form: so khớp không phân biệt hoa thường và dấu ("tom" khớp "Tôm", "hanh" khớp "Hành lá").
-const plain = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase();
+// Đầu bếp phù hợp (có ít nhất một chuyên môn trùng tag đang chọn của món) đưa lên đầu, giữ thứ tự id trong từng nhóm.
+// Chỉ là gợi ý: API không bắt buộc đầu bếp đúng chuyên môn (nhóm chốt).
+function sortChefs(chefs, tagIds) {
+  const fits = (c) => c.tags.some((t) => tagIds.includes(t.id));
+  return [...chefs.filter(fits).map((c) => ({ ...c, fits: true })), ...chefs.filter((c) => !fits(c))];
+}
 
-function DishForm({ id, dish, categories, chefs, ingredients }) {
+const sortedIds = (ids) => [...ids].sort((a, b) => a - b);
+
+function DishForm({ id, dish, tags, chefs, ingredients }) {
   const isEdit = id !== undefined;
   const navigate = useNavigate();
   const [initial] = useState(() => initialValues(dish));
   const [values, setValues] = useState(initial);
-  // Đã sửa gì chưa: so với giá trị lúc mở form (thứ tự tick nguyên liệu không tính là thay đổi).
-  const snapshot = (v) => JSON.stringify({ ...v, ingredientIds: [...v.ingredientIds].sort((a, b) => a - b) });
+  // Đã sửa gì chưa: so với giá trị lúc mở form (thứ tự tick nguyên liệu, tag không tính là thay đổi).
+  const snapshot = (v) => JSON.stringify({ ...v, ingredientIds: sortedIds(v.ingredientIds), tagIds: sortedIds(v.tagIds) });
   const { blocker, allowLeave } = useUnsavedChanges(snapshot(values) !== snapshot(initial));
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState(null);
@@ -127,14 +141,18 @@ function DishForm({ id, dish, categories, chefs, ingredients }) {
     setErrors(({ [field]: _removed, ...rest }) => rest);
   }
 
-  function toggleIngredient(ingredientId) {
-    set(
-      "ingredientIds",
-      values.ingredientIds.includes(ingredientId)
-        ? values.ingredientIds.filter((x) => x !== ingredientId)
-        : [...values.ingredientIds, ingredientId],
-    );
+  // Tick / bỏ tick một id trong mảng (nguyên liệu, tag).
+  function toggle(field, itemId) {
+    set(field, values[field].includes(itemId) ? values[field].filter((x) => x !== itemId) : [...values[field], itemId]);
   }
+
+  // Tag vừa tạo trong TagPicker: tick sẵn. Cập nhật dạng hàm vì trong lúc chờ API admin có thể đã tick ô khác.
+  function onTagCreated(tag) {
+    setValues((v) => ({ ...v, tagIds: [...v.tagIds, tag.id] }));
+    setErrors(({ tagIds: _removed, ...rest }) => rest);
+  }
+
+  const chefChoices = sortChefs(chefs, values.tagIds);
 
   // Nguyên liệu vừa tạo (POST /api/ingredients đã trả về id): thêm vào danh sách và tick sẵn.
   // Cập nhật dạng hàm: trong lúc chờ API, admin có thể đã tick/bỏ tick ô khác — không được ghi đè.
@@ -211,18 +229,15 @@ function DishForm({ id, dish, categories, chefs, ingredients }) {
             <FieldError message={errors.price} />
           </label>
 
-          <label className={`field${errors.category ? " invalid" : ""}`}>
-            <span>Loại</span>
-            <select name="category" value={values.category} onChange={(e) => set("category", e.target.value)}>
-              <option value="">— Chọn loại món —</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <FieldError message={errors.category} />
-          </label>
+          {/* Tag của món (loại món, đặc điểm, vùng miền): tick nhiều → tagIds (API lưu vào dish_tags). */}
+          <TagPicker
+            legend="Tag"
+            tags={tags}
+            selected={values.tagIds}
+            error={errors.tagIds}
+            onToggle={(tagId) => toggle("tagIds", tagId)}
+            onCreated={onTagCreated}
+          />
 
           <label className={`field${errors.description ? " invalid" : ""}`}>
             <span>Mô tả</span>
@@ -230,22 +245,25 @@ function DishForm({ id, dish, categories, chefs, ingredients }) {
             <FieldError message={errors.description} />
           </label>
 
-          {/* Đầu bếp phụ trách: chọn đúng 1 (radio). Gửi id dạng số; API kiểm tra id có thật. */}
+          {/* Đầu bếp phụ trách: chọn đúng 1 (radio). Gửi id dạng số; API kiểm tra id có thật.
+              Đầu bếp có chuyên môn trùng tag đã chọn được đưa lên đầu, kèm nhãn "Đúng chuyên môn". */}
           <fieldset className={`choice-group${errors.chefId ? " invalid" : ""}`}>
             <legend>Đầu bếp phụ trách</legend>
             {errors.chefId && <p className="error">{errors.chefId}</p>}
+            {values.tagIds.length === 0 && chefs.length > 0 && <p className="muted choice-summary">Chọn tag của món để thấy đầu bếp đúng chuyên môn ở đầu danh sách.</p>}
             {chefs.length === 0 && (
               <p className="muted">
                 Chưa có đầu bếp nào. <Link to="/admin/chefs/new">Thêm đầu bếp</Link> trước khi tạo món.
               </p>
             )}
             <div className="choice-grid">
-              {chefs.map((c) => (
+              {chefChoices.map((c) => (
                 <label key={c.id} className="choice">
                   <input type="radio" name="chefId" value={c.id} checked={values.chefId === String(c.id)} onChange={() => set("chefId", String(c.id))} />
                   <span>
                     <strong>{c.name}</strong>
-                    {c.specialty && <small>{c.specialty}</small>}
+                    <small>{tagNames(c.tags)}</small>
+                    {c.fits && <small className="fit-label">Đúng chuyên môn</small>}
                   </span>
                 </label>
               ))}
@@ -289,7 +307,14 @@ function DishForm({ id, dish, categories, chefs, ingredients }) {
             </div>
             {addingIngredient && (
               // Tên lấy sẵn từ ô tìm (thường admin vừa tìm không thấy).
-              <QuickAddIngredient initialName={ingredientQuery.trim()} onCreated={onIngredientCreated} onCancel={() => setAddingIngredient(false)} />
+              <QuickAdd
+                title="Thêm nguyên liệu mới"
+                fields={INGREDIENT_FIELDS}
+                initialValues={{ name: ingredientQuery.trim() }}
+                create={createIngredientFrom}
+                onCreated={onIngredientCreated}
+                onCancel={() => setAddingIngredient(false)}
+              />
             )}
             {addedIngredient && (
               <p className="choice-added" role="status">
@@ -306,7 +331,7 @@ function DishForm({ id, dish, categories, chefs, ingredients }) {
             <div className="choice-grid compact">
               {shownIngredients.map((i) => (
                 <label key={i.id} className="choice">
-                  <input type="checkbox" name="ingredientIds" value={i.id} checked={values.ingredientIds.includes(i.id)} onChange={() => toggleIngredient(i.id)} />
+                  <input type="checkbox" name="ingredientIds" value={i.id} checked={values.ingredientIds.includes(i.id)} onChange={() => toggle("ingredientIds", i.id)} />
                   <span>
                     {i.name}
                     {i.unit && <small> {i.unit}</small>}
