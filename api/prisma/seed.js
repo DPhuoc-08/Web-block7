@@ -2,7 +2,10 @@
 // CẢNH BÁO: xoá TOÀN BỘ dữ liệu của database mà DATABASE_URL đang trỏ tới → in host ra trước để kiểm tra.
 // Dữ liệu tất định (không random): chạy lại luôn ra đúng dữ liệu cũ, id bắt đầu lại từ 1.
 import { prisma } from "../src/db.js";
-import { TAGS, CHEFS, INGREDIENTS, DISHES } from "./seed-data/base.js";
+import { buildSeed } from "./seed-data/generate.js";
+
+// 16 tag, 60 đầu bếp, 250 nguyên liệu, 1.200 món (xem seed-data/generate.js và plan mục 4).
+const { tags: TAGS, chefs: CHEFS, ingredients: INGREDIENTS, dishes: DISHES } = buildSeed();
 
 async function main() {
   const db = new URL(process.env.DATABASE_URL);
@@ -80,6 +83,17 @@ async function printStats() {
       WHERE dt."dishId" = d.id AND ct."chefId" = d."chefId"
     )`;
   console.log(`Món có đầu bếp không đúng chuyên môn: ${mismatched}`);
+
+  const [load] = await prisma.$queryRaw`
+    SELECT min(n)::int AS min, max(n)::int AS max, count(*) FILTER (WHERE n = 0)::int AS idle
+    FROM (SELECT c.id, count(d.id) AS n FROM chefs c LEFT JOIN dishes d ON d."chefId" = c.id GROUP BY c.id) t`;
+  const [{ unusedIngredients }] = await prisma.$queryRaw`
+    SELECT count(*)::int AS "unusedIngredients" FROM ingredients i
+    WHERE NOT EXISTS (SELECT 1 FROM dish_ingredients di WHERE di."ingredientId" = i.id)`;
+  const perTag = await prisma.$queryRaw`
+    SELECT t.name, count(dt."dishId")::int AS n FROM tags t LEFT JOIN dish_tags dt ON dt."tagId" = t.id GROUP BY t.id ORDER BY t.id`;
+  console.log(`Món mỗi đầu bếp: ${load.min}–${load.max} (${load.idle} đầu bếp chưa phụ trách món nào); nguyên liệu chưa món nào dùng: ${unusedIngredients}.`);
+  console.log(`Món mỗi tag: ${perTag.map((t) => `${t.name} ${t.n}`).join(", ")}.`);
 }
 
 main()

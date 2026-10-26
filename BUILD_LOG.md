@@ -127,3 +127,38 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - `check-api.sh`: **154/154 đạt**. Kịch bản trình duyệt bước 4: **22/22** và **8/8 đạt**. Seed lại sau khi test.
 
 **Việc của nhóm:** xoá project Sydney trên dashboard Supabase (không còn dùng).
+
+## Bước 5 — Seed đầy đủ: 1.200 món, 60 đầu bếp, 250 nguyên liệu
+**Đã làm:**
+- `prisma/seed-data/catalog.js` (mới): họ/tên đệm/tên đầu bếp; 221 nguyên liệu bổ sung (cộng 30 của block6 = 250); bảng từ khoá trong tên món → nguyên liệu; tinh bột theo chữ đầu tên; kho nguyên liệu phụ theo loại món; họ món của 11 loại (nền × phần chính × kiểu, kèm khoảng giá và mẫu mô tả); từ khoá → tag vùng miền / Hải sản / Món chay; 7 món đặc biệt ở vị trí cố định.
+- `prisma/seed-data/generate.js` (mới): bộ sinh tất định (PRNG mulberry32, hạt giống cố định `20261026`, không `Math.random`).
+  - 20 món block6 giữ id 1–20, 7 món đặc biệt chèn đúng id (300, 420, 560, 700, 830, 960, 1100), 1.173 món sinh xen kẽ các loại.
+  - Tag món: tag loại + vùng miền (theo từ khoá hoặc 25% ngẫu nhiên) + Hải sản / Món chay (theo từ khoá).
+  - Đầu bếp: 7 của block6 + 53 sinh; chuyên môn chính chia theo tỉ lệ số món của từng loại (mỗi loại ≥ 3 người), thêm 0–2 chuyên môn phụ; 2 người có chuyên môn nhưng 0 món ("Bùi Thanh Tâm" và người sinh cuối cùng).
+  - Gán đầu bếp: người **cùng chuyên môn** đang phụ trách ít món nhất → chia đều.
+  - Nguyên liệu mỗi món 3–6: tinh bột + 1 nguyên liệu cho mỗi từ khoá khớp + bù từ kho theo loại; sau đó "phủ": nguyên liệu nào chưa ai dùng được thêm vào món đầu tiên cùng loại còn chỗ → chỉ còn đúng 5 nguyên liệu cố ý không dùng.
+  - Tự kiểm tra và dừng với thông báo rõ khi: tên nguyên liệu trùng, catalog nhắc tới nguyên liệu không có, một loại không ghép đủ tên, không có đầu bếp đúng chuyên môn, có nguyên liệu không phủ được, tổng khác 1.200.
+- `prisma/seed.js`: lấy dữ liệu từ `buildSeed()`; in thêm số món mỗi đầu bếp (min–max, số người 0 món), số nguyên liệu không dùng, số món mỗi tag.
+- `scripts/check-api.sh`: 2 kỳ vọng phụ thuộc seed nhỏ (Lẩu chưa có món) đổi thành `?tag=999999` → `[]` và "tag Lẩu có món, có đầu bếp".
+
+**Quyết định và lý do:**
+- **Số lượng cân đối thay vì nhân tỉ lệ block6** (plan mục 10.4): khoảng 20 món mỗi đầu bếp; nhân đúng tỉ lệ 20:7:30 sẽ ra 420 đầu bếp, 1.800 nguyên liệu.
+- **Tên món ghép từ danh mục có thật theo từng loại** (vd. "Bún riêu cua Hà Nội", "Mực xào sả ớt", "Lẩu cá kèo 4 người"), không ghép chéo loại → kết quả tìm kiếm khi demo đọc được.
+- **Tên không trùng**: dễ đối chiếu kết quả search và phân trang bằng tên.
+- **Món đặc biệt cố định id** (giá 0; "Combo 100% bò", "Trà_sữa nhà làm", "Cơm \ cháo tuỳ chọn" để thử escape `%`, `_`, `\`; mô tả `NULL`) nằm xa trang đầu → phát hiện lọc chỉ trên dữ liệu chưa đủ.
+- **Ảnh**: món sinh cùng họ với món block6 có ảnh thì dùng lại ảnh đó kèm ghi công (khoảng 246 món); còn lại để trống, giao diện hiện khung "Chưa có ảnh".
+
+**Lỗi phát hiện và cách sửa (trong lúc viết bộ sinh):**
+1. *Một số loại không ghép đủ tên*: Món nước 206/220, Món xào 125/140, Món chiên 108/120 (tự kiểm tra của bộ sinh báo). Thêm kiểu và món chính có thật (Hủ tiếu Sa Đéc/Mỹ Tho, Bánh canh ghẹ/mực, Thịt heo/Lòng heo xào, Cá lóc/Cá trê chiên).
+2. *"Cánh gà" bị gắn tag Hải sản*: chuỗi "cá" nằm trong "Cánh". `\b` của JavaScript không hiểu chữ có dấu → đổi mọi so khớp từ khoá (Hải sản, thịt, Món chay, từ khoá nguyên liệu) sang so khớp nguyên từ bằng lookaround `(?<!\p{L})…(?!\p{L})` với cờ `u`.
+3. *55 nguyên liệu không món nào dùng, mới có 229 nguyên liệu* (plan: 250, 5 không dùng): thêm 21 nguyên liệu, đưa mọi nguyên liệu vào kho theo loại, thêm bước phủ; bước phủ báo đúng "Măng tây" chỉ có trong một tên món có thể bị loại khi bốc ngẫu nhiên → thêm vào kho Khai vị và từ khoá riêng.
+4. *Nguyên liệu thiếu so với tên* ("Sò điệp nướng phô mai" không có Phô mai) → thêm từ khoá "phô mai", "trứng muối". Mẫu mô tả món nướng lặp chữ ("… nướng phô mai nướng tới đâu…") → viết lại câu.
+
+**Đã kiểm tra:**
+- Seed (~11s): **1.200 món, 60 đầu bếp, 250 nguyên liệu, 16 tag**; 2.165 món–tag, 106 đầu bếp–tag, 5.360 món–nguyên liệu; 4 món giá 0; 159 món tạm hết; **0 món sai chuyên môn**; món mỗi đầu bếp 19–22 (2 người 0 món); **5 nguyên liệu không dùng** (Nấm hương, Lá é, Đường thốt nốt, Váng đậu, Sầu riêng).
+- Món mỗi tag: Khai vị 82, Món nước 224, Món cơm 165, Món xào 139, Món chiên 123, Món nướng 123, Món hấp 70, Món cuốn 61, Lẩu 61, Tráng miệng 72, Đồ uống 86, Hải sản 383, Món chay 101, Miền Bắc 144, Miền Trung 119, Miền Nam 212.
+- 1.200 tên không trùng; chỉ 2 món đặc biệt có dưới 3 nguyên liệu (Trà đá, Đá viên).
+- Seed 2 lần liên tiếp: cùng hash `01ea4578accfced3`. Id 1–20 đúng món block6; 7 món đặc biệt đúng id.
+- `check-api.sh`: **154/154 đạt** (sau khi sửa 2 kỳ vọng phụ thuộc seed nhỏ). Seed lại sau khi test.
+
+**Mốc "trước phân trang"** (để so sánh ở bước 7–10): `GET /api/dishes` trả cả 1.200 món, **495KB**, 0,35–1,1s. Trong Chrome headless, `/dishes` cần **~34s** mới hiện đủ 1.200 dòng, `/admin/dishes` ~14s; form món (60 đầu bếp, 250 nguyên liệu) ~5s. Không lỗi console. Đây là lý do thực tế cho phân trang tại server (plan mục 0).

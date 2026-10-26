@@ -242,8 +242,8 @@ part_b() {
   echo "== B. Món ăn: bộ lọc thực đơn, tìm kiếm admin (searchIn)"
   req GET "/api/dishes?tag=2"
   expect "?tag=2 (Món nước) → chỉ món có tag Món nước" 200 '.ok and (.data | length > 0) and all(.data[]; any(.tags[]; .id == 2))'
-  req GET "/api/dishes?tag=9"
-  expect "?tag=9 (Lẩu, chưa có món) → []" 200 '.ok and .data == []'
+  req GET "/api/dishes?tag=999999"
+  expect "?tag=999999 (tag không tồn tại) → []" 200 '.ok and .data == []'
   req GET "/api/dishes?tag=abc"
   expect "?tag=abc (sai định dạng) → bỏ qua, trả đủ" 200 "(.data | length == $total)"
   req GET "/api/dishes?price=duoi-40k"
@@ -356,7 +356,7 @@ part_e() {
   echo "== E. Tag: /api/tags (chỉ đọc danh sách + thêm, không sửa/xoá)"
   req GET /api/tags
   expect "Danh sách → mảng tag, mỗi tag có dishCount, chefCount" 200 '.ok and (.data | length >= 16) and all(.data[]; (.dishCount | type == "number") and (.chefCount | type == "number"))'
-  expect "  …có tag chưa món nào dùng (Lẩu: dishCount 0)" 200 'any(.data[]; .name == "Lẩu" and .dishCount == 0)'
+  expect "  …tag Lẩu có món và có đầu bếp chuyên môn (seed đầy đủ)" 200 'any(.data[]; .name == "Lẩu" and .dishCount > 0 and .chefCount > 0)'
   req POST /api/tags "{\"name\":\"  Tag test $stamp  \",\"id\":999999}"
   expect "Thêm tag hợp lệ → tên đã trim, bỏ trường lạ id, dishCount 0" 200 ".ok and .data.name == \"Tag test $stamp\" and .data.id != 999999 and .data.dishCount == 0 and .data.chefCount == 0"
   req POST /api/tags '{"name":"  MÓN NƯỚC "}'
