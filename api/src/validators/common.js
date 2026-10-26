@@ -13,6 +13,15 @@ export const isBlank = (v) => v === undefined || v === null || (typeof v === "st
 // Id trong body (chefId, ingredientIds, transferTo): số nguyên dương trong giới hạn cột Int.
 export const isIdNumber = (v) => Number.isInteger(v) && v > 0 && v <= MAX_INT;
 
+// Danh sách id trong body (ingredientIds, tagIds): mảng số nguyên dương, ít nhất 1 phần tử.
+// Id trùng (request bị sửa tay) được gộp lại → không vi phạm khoá chính của bảng liên kết.
+// Trả { value } hoặc { error }. Việc id có thật trong DB kiểm tra riêng (cần truy vấn).
+export function idList(v, emptyMessage, typeMessage) {
+  if (v === undefined || v === null || (Array.isArray(v) && v.length === 0)) return { error: emptyMessage };
+  if (!Array.isArray(v) || !v.every(isIdNumber)) return { error: typeMessage };
+  return { value: [...new Set(v)] };
+}
+
 // Trường chữ bắt buộc (name): trả { value } hoặc { error }.
 export function requiredText(v, emptyMessage) {
   if (isBlank(v)) return { error: emptyMessage };

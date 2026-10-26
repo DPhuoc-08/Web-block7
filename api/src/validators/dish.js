@@ -1,7 +1,5 @@
-import { MAX_INT, has, isBlank, isIdNumber, requiredText, optionalText } from "./common.js";
-
-// Loại món là danh sách cố định (giữ từ block5), không gõ tự do: tránh "món nước" và "Món nước" thành 2 loại.
-export const CATEGORIES = ["Khai vị", "Món nước", "Món cơm", "Món xào", "Món chiên", "Tráng miệng", "Đồ uống"];
+import { MAX_INT, has, isBlank, isIdNumber, requiredText, optionalText, idList } from "./common.js";
+import { tagIdList, allTagsExist, TAG_MISSING } from "./tag.js";
 
 function isHttpUrl(value) {
   try {
@@ -19,11 +17,14 @@ function isHttpUrl(value) {
 // - data:          chỉ các cột được phép, đã chuẩn hoá → đưa vào Prisma. Không bao giờ đưa nguyên body
 //                  (body có thể chứa trường lạ như id, createdAt).
 // - ingredientIds: mảng id nguyên liệu đã bỏ trùng (undefined nếu PATCH không gửi).
+// - tagIds:        mảng id tag đã bỏ trùng (undefined nếu PATCH không gửi). Thay cho `category` của block6:
+//                  một món có nhiều tag (loại món, đặc điểm, vùng miền).
 // - errors:        { tênTrường: thông báo }, khoá trùng tên ô nhập trên form của SPA.
 export function validateDish(body, { partial = false } = {}) {
   const data = {};
   const errors = {};
   let ingredientIds;
+  let tagIds;
   const check = (key) => !partial || has(body, key);
 
   if (check("name")) {
@@ -41,10 +42,10 @@ export function validateDish(body, { partial = false } = {}) {
     } else data.price = p;
   }
 
-  if (check("category")) {
-    if (isBlank(body.category)) errors.category = "Vui lòng chọn loại món.";
-    else if (!CATEGORIES.includes(body.category)) errors.category = "Loại món không hợp lệ.";
-    else data.category = body.category;
+  if (check("tagIds")) {
+    const r = tagIdList(body.tagIds);
+    if (r.error) errors.tagIds = r.error;
+    else tagIds = r.value;
   }
 
   if (has(body, "description")) {
@@ -84,23 +85,22 @@ export function validateDish(body, { partial = false } = {}) {
   }
 
   if (check("ingredientIds")) {
-    const list = body.ingredientIds;
-    if (list === undefined || list === null || (Array.isArray(list) && list.length === 0)) {
-      errors.ingredientIds = "Vui lòng chọn ít nhất một nguyên liệu.";
-    } else if (!Array.isArray(list) || !list.every(isIdNumber)) {
-      errors.ingredientIds = "Danh sách nguyên liệu phải là mảng mã nguyên liệu (số nguyên).";
-    } else {
-      // Tick trùng một nguyên liệu (request bị sửa tay) → gộp lại, không vi phạm khoá chính của bảng liên kết.
-      ingredientIds = [...new Set(list)];
-    }
+    const r = idList(
+      body.ingredientIds,
+      "Vui lòng chọn ít nhất một nguyên liệu.",
+      "Danh sách nguyên liệu phải là mảng mã nguyên liệu (số nguyên).",
+    );
+    if (r.error) errors.ingredientIds = r.error;
+    else ingredientIds = r.value;
   }
 
-  return { data, ingredientIds, errors };
+  return { data, ingredientIds, tagIds, errors };
 }
 
-// Id đầu bếp / nguyên liệu gửi lên phải có thật trong DB (request có thể gửi id bịa).
+// Id đầu bếp / nguyên liệu / tag gửi lên phải có thật trong DB (request có thể gửi id bịa).
 // Thêm lỗi vào `errors` thay vì để Prisma báo lỗi khoá ngoại thành 500.
-export async function checkDishRefs(prisma, { data, ingredientIds, errors }) {
+export async function checkDishRefs(prisma, { data, ingredientIds, tagIds, errors }) {
+  if (tagIds !== undefined && !(await allTagsExist(prisma, tagIds))) errors.tagIds = TAG_MISSING;
   if (data.chefId !== undefined) {
     const chef = await prisma.chef.findUnique({ where: { id: data.chefId }, select: { id: true } });
     if (!chef) errors.chefId = "Đầu bếp đã chọn không tồn tại, vui lòng chọn lại.";

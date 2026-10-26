@@ -7,31 +7,38 @@ import { parseId } from "../validators/id.js";
 import { hasErrors } from "../validators/common.js";
 import { validateDish, checkDishRefs } from "../validators/dish.js";
 import { parseMenuFilters } from "../validators/menu-filters.js";
+import { TAG_SELECT, flatTags } from "../http/shapes.js";
 
 const router = Router();
 
-// Dạng chi tiết: kèm đầu bếp phụ trách và nguyên liệu (bảng liên kết được "làm phẳng" thành mảng nguyên liệu).
+// Dạng chi tiết: kèm đầu bếp phụ trách (và chuyên môn), tag, nguyên liệu.
+// Các bảng liên kết được "làm phẳng" thành mảng: tags: [{id, name}], ingredients: [{id, name, unit}].
 const detailInclude = {
-  chef: { select: { id: true, name: true, specialty: true } },
+  chef: { select: { id: true, name: true, tags: TAG_SELECT } },
+  tags: TAG_SELECT,
   ingredients: {
     select: { ingredient: { select: { id: true, name: true, unit: true } } },
     orderBy: { ingredient: { name: "asc" } },
   },
 };
-const toDetail = ({ ingredients, ...dish }) => ({ ...dish, ingredients: ingredients.map((link) => link.ingredient) });
+const toDetail = ({ ingredients, tags, chef, ...dish }) => ({
+  ...dish,
+  chef: { ...chef, tags: flatTags(chef.tags) },
+  tags: flatTags(tags),
+  ingredients: ingredients.map((link) => link.ingredient),
+});
 
-// Danh sách. ?q= tìm theo tên (đúng đề bài); mở rộng từ block5: ?category=&price=&available=1&sort=,
-// và ?searchIn=name,category cho trang admin. Danh sách rỗng vẫn là thành công: data = [].
+// Dạng danh sách: thẻ món ở thực đơn / dòng bảng admin cần tag và tên đầu bếp, không cần nguyên liệu.
+const listInclude = { chef: { select: { id: true, name: true } }, tags: TAG_SELECT };
+const toListItem = ({ tags, ...dish }) => ({ ...dish, tags: flatTags(tags) });
+
+// Danh sách. ?q= tìm theo tên (đúng đề bài); mở rộng từ block5: ?tag=&price=&available=1&sort=,
+// và ?searchIn=name,tag cho trang admin. Danh sách rỗng vẫn là thành công: data = [].
+// (Bước 7 của plan đổi sang phân trang + 4 chế độ search; bước 3 chỉ đổi loại món → tag.)
 router.get("/", async (req, res) => {
-  // Loại đang có món trong DB: chỉ nhận ?category= thuộc danh sách này.
-  const rows = await prisma.dish.findMany({ where: { category: { not: null } }, distinct: ["category"], select: { category: true } });
-  const { where, orderBy } = parseMenuFilters(req.query, rows.map((r) => r.category));
-  const dishes = await prisma.dish.findMany({
-    where,
-    include: { chef: { select: { id: true, name: true } } },
-    orderBy,
-  });
-  ok(res, dishes);
+  const { where, orderBy } = parseMenuFilters(req.query);
+  const dishes = await prisma.dish.findMany({ where, include: listInclude, orderBy });
+  ok(res, dishes.map(toListItem));
 });
 
 // Chi tiết. Id sai định dạng ("abc", "2.5") → NOT_FOUND ngay, không truy vấn (tránh lỗi kiểu dữ liệu thành 500).
@@ -52,9 +59,13 @@ router.post("/", jsonBody, async (req, res) => {
   if (hasErrors(input.errors)) return validationFailed(res, input.errors);
 
   try {
-    // Nested create: món và các dòng liên kết nguyên liệu ghi trong cùng một lệnh (một transaction).
+    // Nested create: món và các dòng liên kết nguyên liệu, tag ghi trong cùng một lệnh (một transaction).
     const created = await prisma.dish.create({
-      data: { ...input.data, ingredients: { create: input.ingredientIds.map((ingredientId) => ({ ingredientId })) } },
+      data: {
+        ...input.data,
+        ingredients: { create: input.ingredientIds.map((ingredientId) => ({ ingredientId })) },
+        tags: { create: input.tagIds.map((tagId) => ({ tagId })) },
+      },
       include: detailInclude,
     });
     ok(res, toDetail(created));
@@ -65,7 +76,7 @@ router.post("/", jsonBody, async (req, res) => {
   }
 });
 
-// Sửa (PATCH): chỉ các trường gửi lên được kiểm tra và ghi. Có `ingredientIds` → thay toàn bộ liên kết.
+// Sửa (PATCH): chỉ các trường gửi lên được kiểm tra và ghi. Có `ingredientIds` / `tagIds` → thay toàn bộ liên kết đó.
 router.patch("/:id", jsonBody, async (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return notFound(res, "Không tìm thấy món.");
@@ -79,6 +90,9 @@ router.patch("/:id", jsonBody, async (req, res) => {
   if (input.ingredientIds !== undefined) {
     // deleteMany + create trong cùng lệnh update → Prisma chạy trong một transaction, không có lúc món mất hết nguyên liệu.
     data.ingredients = { deleteMany: {}, create: input.ingredientIds.map((ingredientId) => ({ ingredientId })) };
+  }
+  if (input.tagIds !== undefined) {
+    data.tags = { deleteMany: {}, create: input.tagIds.map((tagId) => ({ tagId })) };
   }
 
   try {

@@ -2,31 +2,39 @@
 // Khác biệt do giữ khoá ngoại của block5 (dishes.chefId, onDelete: Restrict):
 //   - tên đầu bếp không được trùng (để danh sách chọn đầu bếp trong form món không bị lẫn)
 //   - xoá đầu bếp còn món: phải chọn người nhận (?transferTo=<id>), chuyển món + xoá trong một transaction
+// Block7: chuyên môn là danh sách tag (chef_tags), ghi bằng `tagIds`, đọc ra `tags: [{id, name}]`.
 import { Router } from "express";
 import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken } from "../db.js";
 import { ok, notFound, validationFailed, inUse } from "../http/respond.js";
 import { jsonBody } from "../http/json-body.js";
 import { parseId } from "../validators/id.js";
-import { hasErrors, queryStr, searchWhere } from "../validators/common.js";
+import { hasErrors, queryStr } from "../validators/common.js";
 import { validateChef } from "../validators/chef.js";
+import { allTagsExist, TAG_MISSING } from "../validators/tag.js";
+import { TAG_SELECT, flatTags } from "../http/shapes.js";
 
 const router = Router();
 
 const NOT_FOUND = "Không tìm thấy đầu bếp.";
 const DUPLICATE = "Đã có đầu bếp tên này.";
-const withCount = { _count: { select: { dishes: true } } };
-const toChef = ({ _count, ...chef }) => ({ ...chef, dishCount: _count.dishes });
+const withCount = { _count: { select: { dishes: true } }, tags: TAG_SELECT };
+const toChef = ({ _count, tags, ...chef }) => ({ ...chef, tags: flatTags(tags), dishCount: _count.dishes });
 const dishesOf = (chefId) =>
   prisma.dish.findMany({ where: { chefId }, select: { id: true, name: true }, orderBy: { name: "asc" } });
 
-// Danh sách, mỗi đầu bếp kèm số món đang phụ trách (cột "Phụ trách N món" ở trang quản trị).
-// ?q= (tìm kiếm admin, giữ từ block5): khớp tên HOẶC chuyên môn, không phân biệt hoa thường.
+// Danh sách, mỗi đầu bếp kèm chuyên môn và số món đang phụ trách (cột "Phụ trách N món" ở trang quản trị).
+// ?q= (tìm kiếm admin, giữ từ block5): khớp tên HOẶC tên một chuyên môn, không phân biệt hoa thường.
 router.get("/", async (req, res) => {
-  const chefs = await prisma.chef.findMany({
-    where: searchWhere(queryStr(req.query.q), ["name", "specialty"]),
-    include: withCount,
-    orderBy: { id: "asc" },
-  });
+  const q = queryStr(req.query.q);
+  const where = q
+    ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { tags: { some: { tag: { name: { contains: q, mode: "insensitive" } } } } },
+        ],
+      }
+    : {};
+  const chefs = await prisma.chef.findMany({ where, include: withCount, orderBy: { id: "asc" } });
   ok(res, chefs.map(toChef));
 });
 
@@ -40,13 +48,18 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", jsonBody, async (req, res) => {
-  const { data, errors } = validateChef(req.body);
+  const { data, tagIds, errors } = validateChef(req.body);
   // Trùng tên (không phân biệt hoa thường) là lỗi của ô "Tên" → VALIDATION_FAILED, hiện cạnh ô nhập.
   if (!errors.name && (await nameTaken(prisma.chef, data.name))) errors.name = DUPLICATE;
+  if (tagIds !== undefined && !(await allTagsExist(prisma, tagIds))) errors.tagIds = TAG_MISSING;
   if (hasErrors(errors)) return validationFailed(res, errors);
 
   try {
-    const created = await prisma.chef.create({ data, include: withCount });
+    // Nested create: đầu bếp và các dòng chef_tags ghi trong cùng một lệnh.
+    const created = await prisma.chef.create({
+      data: { ...data, tags: { create: tagIds.map((tagId) => ({ tagId })) } },
+      include: withCount,
+    });
     ok(res, toChef(created));
   } catch (err) {
     // Hai request cùng lưu một tên gần như cùng lúc: @unique ở database chặn request sau.
@@ -59,12 +72,15 @@ router.patch("/:id", jsonBody, async (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return notFound(res, NOT_FOUND);
 
-  const { data, errors } = validateChef(req.body, { partial: true });
+  const { data, tagIds, errors } = validateChef(req.body, { partial: true });
   if (data.name !== undefined && (await nameTaken(prisma.chef, data.name, id))) errors.name = DUPLICATE;
+  if (tagIds !== undefined && !(await allTagsExist(prisma, tagIds))) errors.tagIds = TAG_MISSING;
   if (hasErrors(errors)) return validationFailed(res, errors);
 
+  // Có `tagIds` → thay toàn bộ chuyên môn (deleteMany + create trong cùng lệnh update = một transaction).
+  const write = tagIds === undefined ? data : { ...data, tags: { deleteMany: {}, create: tagIds.map((tagId) => ({ tagId })) } };
   try {
-    const updated = await prisma.chef.update({ where: { id }, data, include: withCount });
+    const updated = await prisma.chef.update({ where: { id }, data: write, include: withCount });
     ok(res, toChef(updated));
   } catch (err) {
     if (isNotFound(err)) return notFound(res, NOT_FOUND);

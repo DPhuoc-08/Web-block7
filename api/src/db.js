@@ -23,7 +23,7 @@ export const isUniqueViolation = (err) => err?.code === "P2002";
 // P2003: vi phạm khoá ngoại → khi xoá: IN_USE; khi tạo/sửa món (đầu bếp/nguyên liệu vừa bị xoá): VALIDATION_FAILED.
 export const isForeignKeyViolation = (err) => err?.code === "P2003";
 
-// Tên đã có (không phân biệt hoa thường) ở bản ghi khác chưa? `delegate` = prisma.chef / prisma.ingredient.
+// Tên đã có (không phân biệt hoa thường) ở bản ghi khác chưa? `delegate` = prisma.chef / prisma.ingredient / prisma.tag.
 // @unique trong schema phân biệt hoa thường, nên kiểm tra thêm ở app để "tỏi" không trùng với "Tỏi".
 export async function nameTaken(delegate, name, excludeId = null) {
   const found = await delegate.findFirst({

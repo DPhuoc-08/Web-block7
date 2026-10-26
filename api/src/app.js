@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import dishesRouter from "./routes/dishes.js";
-import categoriesRouter from "./routes/categories.js";
+import tagsRouter from "./routes/tags.js";
 import chefsRouter from "./routes/chefs.js";
 import ingredientsRouter from "./routes/ingredients.js";
 
@@ -31,7 +31,7 @@ app.use(
 app.use("/api/dishes", dishesRouter);
 app.use("/api/chefs", chefsRouter);
 app.use("/api/ingredients", ingredientsRouter);
-app.use("/api/categories", categoriesRouter);
+app.use("/api/tags", tagsRouter);
 
 // Bước 1: không route nào khớp URL + method → lỗi kỹ thuật 404, body không theo response shape.
 app.use((req, res) => {
