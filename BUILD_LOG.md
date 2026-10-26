@@ -112,3 +112,18 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - Mở kết nối TCP tới pooler: block7 (ap-southeast-2, Sydney) trung bình **322ms**; block6 (ap-southeast-1, Singapore) **132ms**.
 - API khi kết nối đã "ấm": `/api/tags` (1 truy vấn) 0,27s; `/api/dishes` (4 truy vấn: món, đầu bếp, liên kết tag, tag) ~1s; `/api/dishes/2` ~1,2s. Lần đầu sau khi pool nguội: 2,1–2,7s.
 - Mỗi truy vấn tốn ít nhất một vòng mạng, nên phân trang (đếm `total` + lấy `items` + tag + đầu bếp) sẽ chậm tương ứng. Đã báo nhóm để chọn: tạo lại project ở Singapore (DB mới chỉ có schema + seed tạo bằng script) hoặc giữ Sydney.
+
+## Bước 4b — Chuyển database sang Singapore
+**Bối cảnh:** nhóm chọn tạo lại project ở Singapore (phát hiện ở cuối bước 4). Project mới: ref `ovirbpyprylgaqgvgzil`, host `aws-0-ap-southeast-1.pooler.supabase.com`. Đã so ref với block5/block6 (`kkolfprjugtinnzsmwia`) và project Sydney (`txjghunmumpwgwikguyo`): khác cả hai. DB lúc đầu trống, PostgreSQL 17.11, UTF8, `en_US.UTF-8`.
+
+**Đã làm:** dừng API cũ (pool còn trỏ Sydney), chạy lại đúng các lệnh của bước 2: `prisma migrate diff --from-empty` (không có lệnh xoá) → `prisma db push` → `prisma db execute --file prisma/sql/setup-search.sql` → `prisma db seed`. Không đổi code.
+
+**Lần chạy đầu không rõ kết quả:** lệnh gộp (`db push` + seed, có lọc `grep`) không in dòng "in sync" của `db push`, và seed dừng sau dòng "Seed vào". Lỗi bị `grep` ẩn nên không biết chính xác nguyên nhân. Chạy lại từng lệnh riêng: `db push` báo "in sync" (3,8s), seed in đủ thống kê. Bài học: không lọc output của lệnh ghi DB lần đầu chạy.
+
+**Đã kiểm tra:**
+- `pg_trgm` 1.6 ở schema `extensions`; `similarity` cho cùng số đo như ở Sydney (0.769 gõ thừa chữ, 0.222 không dấu).
+- Seed 20/7/30/16, 0 món sai chuyên môn; **hash toàn bộ dữ liệu `145ca853d87d7c35` trùng với DB Sydney** → seed tất định, chuyển region không đổi dữ liệu.
+- Độ trễ: mở kết nối TCP **63ms** (Sydney 322ms). API khi kết nối đã ấm: `/api/tags` 0,08s (Sydney 0,27s), `/api/dishes` 0,24s (~1s), `/api/dishes/2` 0,29–0,34s (~1,2s). Lần đầu sau khi pool nguội: 0,6–0,8s (Sydney 2,1–2,7s).
+- `check-api.sh`: **154/154 đạt**. Kịch bản trình duyệt bước 4: **22/22** và **8/8 đạt**. Seed lại sau khi test.
+
+**Việc của nhóm:** xoá project Sydney trên dashboard Supabase (không còn dùng).
