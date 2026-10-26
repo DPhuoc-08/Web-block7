@@ -1,0 +1,22 @@
+# node scripts/run-sql.js prisma/sql/wildcard-escape.sql  (2026-10-26 21:29)
+
+[1] 1 dòng — cột: truong_hop, so_mon
+    truong_hop="q=%  (chưa escape)"  so_mon="1200"
+
+[2] 1 dòng — cột: truong_hop, so_mon
+    truong_hop="q=_  (chưa escape)"  so_mon="1200"
+
+[3] 1 dòng — cột: truong_hop, so_mon
+    truong_hop="q=Trà_  (chưa escape)"  so_mon="23"
+
+[4] 1 dòng — cột: truong_hop, id, name
+    truong_hop="q=%  (đã escape)"  id=560  name="Combo 100% bò"
+
+[5] 1 dòng — cột: truong_hop, id, name
+    truong_hop="q=_  (đã escape)"  id=700  name="Trà_sữa nhà làm"
+
+[6] 1 dòng — cột: truong_hop, id, name
+    truong_hop="q=Trà_  (đã escape)"  id=700  name="Trà_sữa nhà làm"
+
+[7] 1 dòng — cột: truong_hop, id, name
+    truong_hop="q=\\  (đã escape)"  id=960  name="Cơm \\ cháo tuỳ chọn"

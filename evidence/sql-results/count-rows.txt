@@ -1,0 +1,31 @@
+# node scripts/run-sql.js prisma/sql/count-rows.sql  (2026-10-26 21:29)
+
+[1] 7 dòng — cột: bang, so_dong
+    bang="dishes"  so_dong="1200"
+    bang="chefs"  so_dong="60"
+    bang="ingredients"  so_dong="250"
+    bang="tags"  so_dong="16"
+    bang="dish_tags"  so_dong="2106"
+    bang="chef_tags"  so_dong="106"
+    bang="dish_ingredients"  so_dong="5357"
+
+[2] 1 dòng — cột: tong, tam_het, gia_0, id_nho_nhat, id_lon_nhat
+    tong="1200"  tam_het="180"  gia_0="4"  id_nho_nhat=1  id_lon_nhat=1200
+
+[3] 16 dòng — cột: tag, so_mon
+    tag="Hải sản"  so_mon="386"
+    tag="Món nước"  so_mon="224"
+    tag="Miền Nam"  so_mon="169"
+    tag="Món cơm"  so_mon="165"
+    tag="Miền Bắc"  so_mon="142"
+    tag="Món xào"  so_mon="140"
+    tag="Món chiên"  so_mon="123"
+    tag="Món nướng"  so_mon="123"
+    tag="Miền Trung"  so_mon="104"
+    tag="Món chay"  so_mon="99"
+    tag="Đồ uống"  so_mon="86"
+    tag="Khai vị"  so_mon="83"
+    tag="Tráng miệng"  so_mon="71"
+    tag="Món hấp"  so_mon="70"
+    tag="Lẩu"  so_mon="61"
+    … và 1 dòng nữa

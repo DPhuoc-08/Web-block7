@@ -12,7 +12,14 @@ const ca = readFileSync(new URL("../certs/supabase-ca.crt", import.meta.url), "u
 // Prisma 7 bắt buộc driver adapter; adapter-pg dùng thư viện `pg` để nói chuyện với PostgreSQL.
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL, ssl: { ca } });
 
-export const prisma = new PrismaClient({ adapter });
+// LOG_SQL=1 trong .env: in từng câu SQL Prisma thực sự gửi tới PostgreSQL (kèm tham số và thời gian) — bằng chứng nộp
+// cho thấy LIMIT/OFFSET, COUNT, ILIKE, tsquery, similarity chạy TẠI DATABASE (plan mục 5, 9). Mặc định tắt.
+// Log chỉ có câu SQL và giá trị tham số (từ khoá, số trang), không có chuỗi kết nối.
+const logSql = process.env.LOG_SQL === "1";
+export const prisma = new PrismaClient({ adapter, log: logSql ? [{ emit: "event", level: "query" }] : [] });
+if (logSql) {
+  prisma.$on("query", (e) => console.log(`[SQL ${Math.round(Number(e.duration))}ms] ${e.query}\n          params: ${e.params}`));
+}
 
 // Ba lỗi Prisma dưới đây là lỗi NGHIỆP VỤ đã biết trước (do dữ liệu, không phải hệ thống hỏng),
 // nên route bắt riêng và trả 200 + ok:false. Mọi lỗi khác để đi tới error handler chung → 500.

@@ -1,0 +1,8 @@
+Thao tác: Tham số sai — giá “abc” (VALIDATION_FAILED)
+URL trang: /dishes?mode=advanced&minPrice=abc
+
+=== GET /api/dishes?mode=advanced&pageSize=12&minPrice=abc
+Response: ok: false, error: {"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ.","fields":{"minPrice":"Giá phải là số nguyên không âm (đồng)."}}
+
+(không có câu SQL nào — API dừng ở bước kiểm tra tham số, không chạm database)
+

@@ -1,0 +1,21 @@
+Thao tác: Nâng cao — “gỏi” + tag Hải sản + giá 50.000–150.000 + đang phục vụ, giá tăng dần, trang 2
+URL trang: /dishes?mode=advanced&q=gỏi&tag=12&minPrice=50000&maxPrice=150000&available=true&sort=gia-tang&page=2
+
+=== GET /api/dishes?mode=advanced&q=gỏi&page=2&pageSize=12&sort=gia-tang&tag=12&minPrice=50000&maxPrice=150000&available=true
+Response: ok: true, items: 2, total: 14, page: 2, pageSize: 12, id: [806, 634]
+
+[SQL 29ms] SELECT "public"."tags"."id" FROM "public"."tags" WHERE ("public"."tags"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
+          params: [12,"1","0"]
+[SQL 32ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE ("public"."dishes"."name" ILIKE ('%' || $1 || '%') AND EXISTS(SELECT "t0"."dishId" FROM "public"."dish_tags" AS "t0" WHERE ("t0"."tagId" = $2 AND ("public"."dishes"."id") = ("t0"."dishId") AND "t0"."dishId" IS NOT NULL)) AND "public"."dishes"."price" >= $3 AND "public"."dishes"."price" <= $4 AND "public"."dishes"."available" = $5) OFFSET $6) AS "sub"
+          params: ["gỏi",12,50000,150000,true,"0"]
+[SQL 32ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE ("public"."dishes"."name" ILIKE ('%' || $1 || '%') AND EXISTS(SELECT "t0"."dishId" FROM "public"."dish_tags" AS "t0" WHERE ("t0"."tagId" = $2 AND ("public"."dishes"."id") = ("t0"."dishId") AND "t0"."dishId" IS NOT NULL)) AND "public"."dishes"."price" >= $3 AND "public"."dishes"."price" <= $4 AND "public"."dishes"."available" = $5) ORDER BY "public"."dishes"."price" ASC, "public"."dishes"."id" ASC LIMIT $6 OFFSET $7
+          params: ["gỏi",12,50000,150000,true,"12","12"]
+[SQL 38ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1,$2) OFFSET $3
+          params: [14,24,"0"]
+[SQL 65ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1,$2) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $3
+          params: [806,634,"0"]
+[SQL 33ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2,$3,$4) OFFSET $5
+          params: [1,1,12,12,"0"]
+[SQL 41ms] COMMIT
+          params: []
+

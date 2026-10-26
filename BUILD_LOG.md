@@ -369,3 +369,52 @@ Chạy trên dữ liệu seed đầy đủ (1.200 món), API :3000, SPA bản pr
 - (3) Ở trang 1 / 60 của admin, dải số là 1 2 … 60, nên không có nút "Trang 3"; đổi sang trang 2.
 
 **Hồi quy:** `check-api.sh` **210/210**; kịch bản bước 9 **17/17**, bước 10 **22/22** (chờ thêm `.skeleton-list` biến mất thay vì chỉ `.loading`), bước 11–13 **16/16** (cuộn hết 1.200 món đủ id 1–1200, không trùng, 50s), bước 14 **19/19**. Seed lại sau khi test (`npx prisma db seed`, in host Singapore trước khi xoá), hash dữ liệu `798423e712f0ffdc` không đổi.
+
+## Bước 16 — Bằng chứng nộp (`evidence/`)
+**Đã làm:**
+- **`LOG_SQL=1`** (plan mục 5, chưa làm ở giai đoạn I): `src/db.js` bật `log: [{ emit: "event", level: "query" }]` của Prisma. Mỗi câu SQL thật được in kèm tham số và thời gian chạy, ví dụ `[SQL 36ms] … LIMIT $1 OFFSET $2` / `params: ["12","12"]`. Mặc định tắt; `.env.example` có dòng hướng dẫn (để comment).
+- File SQL chạy lại được, có dòng "Kỳ vọng" như `search-examples.sql`:
+  - `api/prisma/sql/count-rows.sql`: số dòng 7 bảng, số món tạm hết / giá 0, số món theo tag;
+  - `api/prisma/sql/wildcard-escape.sql`: chạy đúng dạng câu Prisma sinh ra (`ILIKE ('%' || $1 || '%')`) trước và sau khi escape.
+- **`evidence/`:**
+  - `README.md`: đối chiếu từng yêu cầu của đề, bảng 4 chế độ (URL trang ↔ request API ↔ SQL), lỗi đã phát hiện, cách chạy lại, checklist phần nhóm tự chụp trên trình duyệt thật.
+  - `network/network-log.md`: 12 thao tác demo, mỗi request có status, kiểu, dung lượng, số items / total / page / pageSize.
+  - `network/response-thuc-don-trang-2.json`: JSON đầy đủ của trang 2.
+  - `sql-log/*.txt`: SQL thật của từng thao tác.
+  - `sql-results/*.txt`: kết quả 3 file SQL.
+  - `screens/*.png`: 12 ảnh, mỗi ảnh cuộn tới phần cần chứng minh.
+
+**Cách thu:**
+- Chrome headless điều khiển qua DevTools Protocol mở từng URL trang trên bản production, làm thao tác (bấm trang 2, Tải thêm 2 lần, cuộn 2 lần), ghi mọi request tới API và lấy body bằng `Network.getResponseBody`.
+- Sau đó gửi lại **đúng các URL API đó** tới một API phụ (cổng 3001, `LOG_SQL=1`) và cắt log theo từng request. Nhờ vậy URL trang ↔ request ↔ SQL là cùng một chuỗi, không phải ví dụ viết tay.
+
+**Kết quả đáng chú ý:**
+- 29/29 request tới API là `Fetch`, `application/json`, status 200 (kể cả `VALIDATION_FAILED`, đúng envelope).
+- Mỗi lần chuyển trang / tải thêm / cuộn tới cuối chỉ có một `GET /api/dishes` nhận 12 món, body ≈ 5,8 KB. Tải cả 1.200 món (12 request × 100 món) ≈ 480 KB.
+- Mỗi request danh sách gồm: `COUNT(*)` cùng điều kiện → `total`; `ORDER BY … id ASC LIMIT/OFFSET`; ba câu nạp đầu bếp và tag theo id của trang.
+- Fuzzy: `set_config('pg_trgm.similarity_threshold', '0.3', true)` → CTE `matched` → `COMMIT`.
+- Tham số sai → không có câu SQL nào.
+- Không file nào trong `evidence/` chứa host, user, mật khẩu hay chuỗi kết nối (đã `grep "postgres\.\|pooler\|password"`).
+
+**Quyết định:**
+- **Ảnh tab Network của DevTools và ảnh Table Editor của Supabase để nhóm tự chụp** (checklist trong `evidence/README.md`, plan mục 8 đã ghi). Chrome headless không chụp được giao diện DevTools, và mình không vào dashboard Supabase. Phần thay thế tự động là bản ghi Network qua giao thức DevTools + `count-rows.sql`.
+- **Script thu bằng chứng không đưa vào repo**, giống các kịch bản trình duyệt của bước trước: chúng phụ thuộc bộ điều khiển Chrome viết tạm. Phần chạy lại được nằm ở 3 file `.sql` + `LOG_SQL=1` (README mục "Cách chạy lại").
+
+**Phát hiện khi làm:**
+- **Lỗi giao diện của bước 15** (thấy khi xem ảnh bằng chứng, kịch bản bước 15 không bắt được vì chỉ đo số liệu):
+  - *Hiện tượng:* ở máy có chuột, đường kẻ dưới mỗi món cong lên ở hai đầu.
+  - *Nguyên nhân:* `border-radius` của thẻ món được đặt sẵn ở trạng thái thường, nên bo luôn cả `border-bottom`.
+  - *Cách sửa:* chỉ bo góc khi rê chuột, lúc đó đường kẻ đã trong suốt.
+  - *Sau khi sửa:* ảnh `so-trang-2.png`, `tai-them.png` có đường kẻ thẳng; kịch bản bước 15 đạt 24/24.
+- **Số "Trà_ → 24 món" trong BUILD_LOG bước 7** đo trên seed lúc đó. Bước 8 bỏ các tên lặp chữ trong bộ sinh, nên seed hiện tại cho 23. `wildcard-escape.sql` ghi kỳ vọng 23 kèm lý do; mục bước 7 giữ nguyên vì đúng tại thời điểm đo.
+- **Cảnh báo `DeprecationWarning: Calling client.query() when the client is already executing a query`** trong log API:
+  - Có từ trước bước 16 (tiến trình API đầu phiên đã in).
+  - Truy bằng `--trace-deprecation` khi chạy `check-api.sh`: nguồn là `PgTransaction.performIO` trong `@prisma/adapter-pg`. Bộ chạy truy vấn của Prisma 7.10 gửi hai câu cùng lúc trên một kết nối trong transaction; `pg` 8 tự xếp hàng nên kết quả đúng.
+  - Các request chỉ đọc (danh sách, fuzzy, fulltext, tag, đầu bếp) không gây cảnh báo.
+  - Không sửa: phiên bản ghim theo block6, không phải code của nhóm. Ghi lại để biết khi nâng `pg` lên 9.
+
+**Đã kiểm tra:**
+- `check-api.sh` **210/210** sau khi đổi `db.js` (LOG_SQL tắt, API không in thêm gì).
+- 3 file SQL chạy lại đúng các dòng "Kỳ vọng" (count-rows 3 kết quả, search-examples 14, wildcard-escape 7).
+- Kịch bản bước 15 sau khi sửa CSS: lần đầu **22/24**. Hai mục phụ thuộc thời gian: khung xương biến mất giữa lúc chờ thấy và lúc đo style; rê chuột. Chạy riêng mục rê chuột thì đạt (`:hover`, `translateY(-2px)`, bo 10px). Chạy lại toàn bộ hai lần: **24/24, 24/24**.
+- Seed lại sau khi test, hash `798423e712f0ffdc`.

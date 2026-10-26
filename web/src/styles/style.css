@@ -414,8 +414,9 @@ a, .btn, .chip, .page-num, .page-btn, .view-btn, .choice, input, select, textare
    Chỉ trên thiết bị có chuột (hover: hover): màn hình cảm ứng không bị "kẹt" trạng thái nổi sau khi chạm. */
 .dish-row { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
 @media (hover: hover) {
-  .dish-row { padding-inline: 12px; margin-inline: -12px; border-radius: var(--radius); }
-  .dish-row:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgb(29 28 26 / .09); border-bottom-color: transparent; }
+  .dish-row { padding-inline: 12px; margin-inline: -12px; }
+  /* Bo góc chỉ khi nổi (đường kẻ dưới đã trong suốt): bo sẵn ở trạng thái thường làm đường kẻ dưới cong lên ở hai đầu. */
+  .dish-row:hover { border-radius: var(--radius); transform: translateY(-2px); box-shadow: 0 8px 22px rgb(29 28 26 / .09); border-bottom-color: transparent; }
 }
 /* Món vừa nối (Tải thêm / Cuộn vô hạn): mờ → rõ, trượt lên 8px. Không giữ trạng thái cuối (không fill-mode)
    để hiệu ứng nổi khi rê chuột vẫn dùng được transform sau khi xong. */

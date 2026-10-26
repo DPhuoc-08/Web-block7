@@ -1,0 +1,101 @@
+# node scripts/run-sql.js prisma/sql/search-examples.sql  (2026-10-26 21:29)
+
+[1] 1 dòng — cột: id, name
+    id=700  name="Trà_sữa nhà làm"
+
+[2] 1 dòng — cột: id, name
+    id=560  name="Combo 100% bò"
+
+[3] 10 dòng — cột: id, name
+    id=9  name="Bò lúc lắc"
+    id=110  name="Cơm niêu bò lúc lắc phần lớn"
+    id=255  name="Cơm niêu bò lúc lắc"
+    id=509  name="Cơm tấm bò lúc lắc phần lớn"
+    id=607  name="Cơm bò lúc lắc kèm canh chua"
+    id=610  name="Cơm tấm bò lúc lắc"
+    id=625  name="Cơm bò lúc lắc phần lớn"
+    id=835  name="Cơm tấm bò lúc lắc kèm canh chua"
+    id=886  name="Cơm niêu bò lúc lắc đặc biệt"
+    id=957  name="Cơm bò lúc lắc"
+
+[4] 0 dòng — cột: id, name
+
+[5] 5 dòng — cột: id, name, price
+    id=135  name="Lẩu vịt nấu chao nhỏ"  price=270000
+    id=352  name="Lẩu mắm lớn"  price=215000
+    id=675  name="Lẩu vịt nấu chao"  price=205000
+    id=1107  name="Lẩu vịt nấu chao 2 người"  price=265000
+    id=1169  name="Lẩu mắm 2 người"  price=215000
+
+[6] 4 dòng — cột: id, name, price
+    id=300  name="Trà đá"  price=0
+    id=420  name="Rau sống (tặng kèm)"  price=0
+    id=830  name="Nước sâm (tặng kèm)"  price=0
+    id=1100  name="Đá viên (tặng kèm)"  price=0
+
+[7] 60 dòng — cột: id, name, price
+    id=37  name="Lẩu cá lăng lớn"  price=285000
+    id=44  name="Lẩu nấm"  price=370000
+    id=55  name="Lẩu kim chi nhỏ"  price=435000
+    id=77  name="Lẩu gà lá é lớn"  price=265000
+    id=130  name="Lẩu Thái nhỏ"  price=330000
+    id=135  name="Lẩu vịt nấu chao nhỏ"  price=270000
+    id=143  name="Lẩu dê lớn"  price=250000
+    id=168  name="Lẩu nấm nhỏ"  price=395000
+    id=206  name="Lẩu chua cay"  price=230000
+    id=213  name="Lẩu riêu cua 2 người"  price=355000
+    id=215  name="Lẩu kim chi 2 người"  price=425000
+    id=216  name="Lẩu bò"  price=310000
+    id=280  name="Lẩu gà lá é 2 người"  price=270000
+    id=352  name="Lẩu mắm lớn"  price=215000
+    id=372  name="Lẩu nấm 2 người"  price=360000
+    … và 45 dòng nữa
+
+[8] 11 dòng — cột: id, name, score
+    id=8  name="Cá kho tộ"  score="1.000"
+    id=80  name="Cơm cá kho tộ đặc biệt"  score="1.000"
+    id=109  name="Cơm niêu cá kho tộ"  score="1.000"
+    id=201  name="Cơm tấm cá kho tộ đặc biệt"  score="1.000"
+    id=342  name="Cơm cá kho tộ kèm canh chua"  score="1.000"
+    id=380  name="Cơm tấm cá kho tộ"  score="1.000"
+    id=413  name="Cơm cá kho tộ"  score="1.000"
+    id=464  name="Cơm niêu cá kho tộ phần lớn"  score="1.000"
+    id=492  name="Cơm tấm cá kho tộ kèm canh chua"  score="1.000"
+    id=908  name="Cơm cá kho tộ phần lớn"  score="1.000"
+    id=1071  name="Cơm tấm cá kho tộ phần lớn"  score="1.000"
+
+[9] 62 dòng — cột: id, name, score
+    id=1095  name="Hủ tiếu xương khô"  score="0.710"
+    id=145  name="Hủ tiếu xương đặc biệt"  score="0.705"
+    id=24  name="Miến vịt nước"  score="0.647"
+    id=448  name="Mì hoành thánh nước"  score="0.647"
+    id=595  name="Miến măng gà nước"  score="0.647"
+    id=875  name="Mì hải sản nước"  score="0.647"
+    id=289  name="Hủ tiếu xương"  score="0.532"
+    id=934  name="Hủ tiếu xương Sa Đéc"  score="0.413"
+    id=1  name="Phở bò tái"  score="0.267"
+    id=33  name="Hủ tiếu gõ Sa Đéc"  score="0.267"
+    id=53  name="Phở đuôi bò Nam Định"  score="0.267"
+    id=65  name="Bún cá lóc đặc biệt"  score="0.267"
+    id=93  name="Phở bò tái đặc biệt"  score="0.267"
+    id=111  name="Bún mọc"  score="0.267"
+    id=142  name="Cháo hàu rau đắng"  score="0.267"
+    … và 47 dòng nữa
+
+[10] 0 dòng — cột: id, name, score
+
+[11] 6 dòng — cột: id, name, score
+    id=9  name="Bò lúc lắc"  score="0.667"
+    id=957  name="Cơm bò lúc lắc"  score="0.500"
+    id=610  name="Cơm tấm bò lúc lắc"  score="0.400"
+    id=255  name="Cơm niêu bò lúc lắc"  score="0.381"
+    id=625  name="Cơm bò lúc lắc phần lớn"  score="0.333"
+    id=216  name="Lẩu bò"  score="0.308"
+
+[12] 1 dòng — cột: id, name, score
+    id=9  name="Bò lúc lắc"  score="0.667"
+
+[13] 0 dòng — cột: id, name, score
+
+[14] 1 dòng — cột: total, page1, page2
+    total="60"  page1=[37,44,55]  page2=[77,130,135]

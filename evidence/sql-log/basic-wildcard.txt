@@ -1,0 +1,19 @@
+Thao tác: Cơ bản — “100%” (ký tự % là chữ thường, sau khi sửa lỗi)
+URL trang: /dishes?q=100%
+
+=== GET /api/dishes?mode=basic&q=100%&pageSize=12
+Response: ok: true, items: 1, total: 1, page: 1, pageSize: 12, id: [560]
+
+[SQL 40ms] SELECT COUNT(*) AS "_count$_all" FROM (SELECT "public"."dishes"."id" FROM "public"."dishes" WHERE "public"."dishes"."name" ILIKE ('%' || $1 || '%') OFFSET $2) AS "sub"
+          params: ["100\\%","0"]
+[SQL 35ms] SELECT "public"."dishes"."id", "public"."dishes"."name", "public"."dishes"."description", "public"."dishes"."price", "public"."dishes"."available", "public"."dishes"."imageUrl", "public"."dishes"."imageCredit", "public"."dishes"."createdAt", "public"."dishes"."chefId" FROM "public"."dishes" WHERE "public"."dishes"."name" ILIKE ('%' || $1 || '%') ORDER BY "public"."dishes"."id" ASC LIMIT $2 OFFSET $3
+          params: ["100\\%","12","0"]
+[SQL 28ms] SELECT "public"."chefs"."id", "public"."chefs"."name" FROM "public"."chefs" WHERE "public"."chefs"."id" IN ($1) OFFSET $2
+          params: [58,"0"]
+[SQL 55ms] SELECT "public"."dish_tags"."dishId", "public"."dish_tags"."tagId" FROM "public"."dish_tags" WHERE "public"."dish_tags"."dishId" IN ($1) ORDER BY "public"."dish_tags"."tagId" ASC OFFSET $2
+          params: [560,"0"]
+[SQL 33ms] SELECT "public"."tags"."id", "public"."tags"."name" FROM "public"."tags" WHERE "public"."tags"."id" IN ($1,$2) OFFSET $3
+          params: [6,9,"0"]
+[SQL 28ms] COMMIT
+          params: []
+
