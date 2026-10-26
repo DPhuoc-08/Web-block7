@@ -387,3 +387,19 @@ a.tag-chip:hover { border-color: var(--primary); color: var(--primary); text-dec
   .search-main .field.fixed, .search-sort .field.fixed { flex: 1 1 100%; }
   .search-advanced { display: grid; grid-template-columns: 1fr 1fr; }
 }
+/* Công tắc cách hiển thị (Số trang / Tải thêm / Cuộn vô hạn) — nhóm nút liền nhau, nút đang chọn tô màu nhấn. */
+.view-switch { display: inline-flex; margin: 16px 0 0; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+.view-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: var(--text); font-weight: 600; font-size: .9rem; background: var(--surface); }
+.view-btn + .view-btn { border-left: 1px solid var(--border-strong); }
+.view-btn:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+.view-btn[aria-current="true"] { background: var(--primary); color: #fff; }
+/* Cuối danh sách nối thêm. */
+.load-more { display: grid; justify-items: center; gap: 10px; margin: 24px 0 8px; }
+.load-more .alert { margin: 0; }
+.load-count { font-size: .9rem; }
+.load-end { text-align: center; margin: 24px 0 8px; }
+.sentinel { height: 1px; }
+@media (max-width: 600px) {
+  .view-switch { display: flex; }
+  .view-btn { flex: 1 1 0; justify-content: center; padding: 0 8px; }
+}

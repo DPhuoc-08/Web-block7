@@ -278,3 +278,26 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - 375px không cuộn ngang; không lỗi console; `vite build` thành công.
 
 **Lỗi trong kịch bản kiểm tra (không phải lỗi app):** (1) chờ "URL đã đổi" rồi đọc danh sách ngay → đọc nhầm danh sách cũ vì React chưa render lại (6 mục báo sai); đổi sang chờ nội dung mong đợi. (2) Ghi cứng "53 món" theo seed cũ — seed sau bước 8 có 54 món chứa "phở"; đổi sang lấy `total` từ API.
+
+## Bước 11–13 — Tải thêm, Cuộn vô hạn, không trộn kết quả
+**Đã làm:**
+- `hooks/useAppendList.js` (mới): danh sách nối thêm dùng chung cho cả hai kiểu. `loadNext()` thoát khi đang tải / đã hết; cờ "đang tải" là ref đặt đồng bộ trước khi gửi; chỉ nối khi response còn thuộc bộ điều kiện hiện tại (bộ đếm "thế hệ" tăng mỗi lần reset, request cũ bị huỷ bằng AbortController); lỗi → giữ `nextPage` và danh sách; `end` tính từ metadata của response vừa nhận (`page * pageSize >= total` hoặc items rỗng). Đổi bộ điều kiện → reset, tải trang 1.
+- `components/LoadMore.jsx` (nút Tải thêm / Đang tải thêm… / Thử lại, "Đã hiện 24/1200 món", "Đã hiện hết N món"), `components/InfiniteSentinel.jsx` (IntersectionObserver trên một phần tử sau danh sách, `rootMargin: 200px`; lỗi hoặc hết → ngắt; sau mỗi lần nối, nếu sentinel vẫn trong vùng nhìn thì tải tiếp tuần tự; rời trang → disconnect), `components/ViewSwitch.jsx` (Số trang / Tải thêm / Cuộn vô hạn, mỗi nút là link giữ điều kiện, bỏ `page`).
+- `DishListPage` tách thành `PagedMenu` (số trang) và `AppendMenu` (tải thêm / cuộn, chung `useAppendList`); phần đầu trang, dòng kết quả, trạng thái rỗng, lưới món dùng chung. Chế độ cuộn vẫn có nút "Tải thêm" dự phòng.
+
+**Quyết định và lý do:**
+- **URL của Tải thêm / Cuộn không ghi `page`; mở lại link thì tải lại từ đầu với cùng điều kiện** (plan mục 10.11).
+- **Một hàm `loadNext()` cho cả nút và sentinel**: chỉ một chỗ giữ quy tắc chặn gửi trùng, bỏ response cũ, giữ danh sách khi lỗi.
+
+**Lỗi phát hiện và sửa (bước 13):** khi đổi điều kiện (bấm chip) trong lúc đang ở Tải thêm, URL đã đổi nhưng danh sách của điều kiện CŨ vẫn hiện thêm một khoảng (đo được hơn 500ms) cho tới khi effect reset chạy. Không có món nào bị nối nhầm, nhưng vi phạm nguyên tắc "kết quả của URL cũ không được hiện cho URL mới" mà `useLoad` của block6 đảm bảo. Sửa: state của `useAppendList` ghi kèm `key`; `key` lệch → trả trạng thái đang tải ngay trong lần render đầu tiên.
+
+**Đã điều tra, không phải lỗi app:** ở chế độ dev, lần render sau khi bấm chip có lúc trễ 1–2,5s. Profile cho thấy phần lớn thời gian nằm ở phần ghi hiệu năng chỉ có ở React 19 bản dev (`logComponentRender`, `addObjectDiffToProperties`). Trên bản production (`vite build` + `vite preview`), đo lặp 3 lần thời gian từ lúc bấm chip tới lúc component cha render: Tải thêm 954 / 230 / 39ms, Số trang 26 / 10 / 4ms, Cuộn 19 / 17 / 18ms. Độ trễ lớn chỉ xuất hiện ở lần điều hướng đầu tiên sau khi tải trang trong Chrome headless rồi giảm nhanh → dao động lúc khởi động của môi trường đo, không phải lỗi có hệ thống của danh sách nối thêm.
+
+**Đã kiểm tra** (Chrome headless trên bản production, **16/16 đạt**):
+- Tải thêm: 12 món + "Đã hiện 12/1200 món"; bấm → 24 món id 1–24, URL không đổi; bấm 3 lần liên tiếp trong một lượt → chỉ 1 request `page=3`, 36 món không trùng.
+- Chặn request trang 4 (`Network.setBlockedURLs`) → thông báo lỗi, giữ 36 món, nút "Thử lại"; bỏ chặn, Thử lại → đúng trang 4 (48 món, id 1–48).
+- Lọc Lẩu, bấm tới hết → "Đã hiện hết 61 món", 61 id đúng thứ tự API; hết thì không còn nút, không gửi trang 7.
+- Mạng chậm 2,5s (`Network.emulateNetworkConditions`), bấm Tải thêm rồi đổi sang chip Đồ uống ngay → chỉ có 12 món Đồ uống, trang 2 của danh sách cũ không bị nối. Mở lại link Tải thêm → tải lại từ đầu, giữ điều kiện.
+- Cuộn vô hạn (Lẩu): tự nối tới "Đã hiện hết 61 món", đúng 61 id; mỗi trang chỉ gửi một lần. Màn hình cao 4000px → tự tải tiếp cho tới khi sentinel ra khỏi vùng nhìn. Có nút Tải thêm dự phòng. Vào trang chi tiết rồi cuộn → không còn request danh sách (observer đã ngắt).
+- **Cuộn hết 1.200 món: đủ id 1–1200, không trùng, không mất (71s).**
+- Chạy lại trên bản production: bước 9 **17/17**, bước 10 **22/22**. Seed lại sau khi test.
