@@ -24,6 +24,7 @@ const wholeWords = (re) => new RegExp(`(?<!\\p{L})(?:${re.source})(?!\\p{L})`, "
 const IS_SEAFOOD = wholeWords(SEAFOOD);
 const IS_MEAT = wholeWords(MEAT);
 const IS_VEGGIE = wholeWords(VEGGIE);
+const REPEATED_WORD = /(?<!\p{L})(\p{L}+) \1(?!\p{L})/iu;
 const KEYWORDS = KEYWORD_INGREDIENTS.map(([keyword, options]) => [wholeWords(new RegExp(keyword)), options]);
 
 // Món của block6 có ảnh thật → món sinh cùng loại dùng lại ảnh (kèm ghi công). [từ khoá đầu tên, vị trí trong BASE_DISHES]
@@ -109,6 +110,8 @@ export function buildSeed() {
             const name = [base, main, style].filter(Boolean).join(" ");
             // Họ món dạng "Bò xào tỏi": phần chính là động từ → món chính là phần nền.
             const mainLabel = mains.length === 1 ? base.toLowerCase() : main;
+            // Bỏ tên lặp chữ liền nhau do ghép phần chính với kiểu ("Gỏi tôm" + "tôm thịt" → "Gỏi tôm tôm thịt").
+            if (REPEATED_WORD.test(name)) continue;
             if (!reserved.has(name.toLowerCase())) candidates.push({ name, type, mainLabel, family });
           }
         }
@@ -176,12 +179,16 @@ export function buildSeed() {
   }
 
   // ===== Phủ nguyên liệu: mọi nguyên liệu (trừ 5 cố ý không dùng) phải có ít nhất một món dùng =====
-  // Nguyên liệu chưa ai dùng → thêm vào món sinh đầu tiên (theo id) cùng loại có nguyên liệu đó trong kho và còn < 6.
+  // Nguyên liệu chưa ai dùng → thêm vào món sinh đầu tiên (theo id) còn < 6 nguyên liệu và hợp với nguyên liệu đó:
+  // cùng loại có nguyên liệu trong kho PANTRY, hoặc tên món khớp từ khoá dẫn tới nguyên liệu (vd. "giò heo" → Chân giò,
+  // khi lần bốc ngẫu nhiên đã chọn Giò heo).
   const used = new Set(dishes.flatMap((d) => d.ingredients));
   const firstGenerated = BASE_DISHES.length;
+  const fits = (d, name) =>
+    PANTRY[d.tags[0]]?.includes(name) || KEYWORDS.some(([keyword, options]) => options.includes(name) && keyword.test(d.name));
   for (const [name] of ingredients) {
     if (used.has(name) || unused.has(name)) continue;
-    const dish = dishes.slice(firstGenerated).find((d) => d.ingredients.length < 6 && PANTRY[d.tags[0]]?.includes(name) && !d.ingredients.includes(name));
+    const dish = dishes.slice(firstGenerated).find((d) => d.ingredients.length < 6 && !d.ingredients.includes(name) && fits(d, name));
     if (!dish) throw new Error(`Seed: không món nào dùng được nguyên liệu "${name}" (thêm vào kho PANTRY hoặc từ khoá).`);
     dish.ingredients.push(name);
     used.add(name);

@@ -329,7 +329,7 @@ collect() {
   local query=$1 page=1 all="[]" items
   while :; do
     req GET "/api/dishes?${query}&pageSize=100&page=$page"
-    items=$(jq -c '[.data.items[] | {id, price, available}]' <<<"$BODY")
+    items=$(jq -c '[.data.items[] | {id, price, available, score, text: ((.name + " " + (.description // "")) | ascii_downcase)}]' <<<"$BODY")
     [ "$items" = "[]" ] && break
     all=$(jq -c --argjson a "$all" --argjson b "$items" -n '$a + $b')
     page=$((page + 1))
@@ -380,7 +380,7 @@ part_c() {
 }
 
 part_d() {
-  echo "== D. Search basic / advanced"
+  echo "== D. Search basic / advanced / fulltext / fuzzy"
   local v expect_id
   for pair in "%25:560" "_:700" "Tr%C3%A0_:700" "%5C:960" "100%25:560"; do
     v=${pair%%:*}; expect_id=${pair##*:}
@@ -422,6 +422,46 @@ part_d() {
     req GET "/api/dishes?mode=advanced&${pair%%:*}"
     expect_code "advanced ${pair%%:*} → VALIDATION_FAILED fields.${pair##*:}" VALIDATION_FAILED "(.error.fields | keys) == [\"${pair##*:}\"]"
   done
+
+  echo "== D. Full-text (simple, tên + mô tả) và fuzzy (pg_trgm, ngưỡng 0.3)"
+  # Thứ tự theo điểm: điểm giảm dần, cùng điểm thì id tăng dần (thứ tự xác định khi chia trang).
+  local by_score='[range(1; length) as $i | (.[$i-1].score > .[$i].score) or (.[$i-1].score == .[$i].score and .[$i-1].id < .[$i].id)] | all'
+  for m in fulltext fuzzy; do
+    req GET "/api/dishes?mode=$m"
+    expect_code "mode=$m không có q → VALIDATION_FAILED fields.q" VALIDATION_FAILED '(.error.fields | keys) == ["q"]'
+    req GET "/api/dishes?mode=$m&q=%20%20"
+    expect_code "mode=$m q toàn khoảng trắng → VALIDATION_FAILED fields.q (không âm thầm lấy tất cả)" VALIDATION_FAILED '(.error.fields | keys) == ["q"]'
+    req GET "/api/dishes?mode=$m&q=khongcomonnay"
+    expect "mode=$m không khớp → ok, items [], total 0" 200 '.ok and .data.items == [] and .data.total == 0'
+  done
+  all=$(collect "mode=fulltext&q=n%C6%B0%E1%BB%9Bc%20d%C3%B9ng%20x%C6%B0%C6%A1ng")
+  BODY=$all; STATUS=200
+  expect "fulltext \"nước dùng xương\": mọi món chứa đủ 3 từ (không cần liền nhau) trong tên + mô tả" 200 '(length > 0) and all(.[]; (.text | test("nước")) and (.text | test("dùng")) and (.text | test("xương")))'
+  expect "  …qua mọi trang: xếp theo điểm giảm dần rồi id, không trùng id" 200 "($by_score) and ([.[].id] | unique | length) == length"
+  local ft_total
+  ft_total=$(jq length <<<"$all")
+  req GET "/api/dishes?mode=fulltext&q=x%C6%B0%C6%A1ng%20d%C3%B9ng%20n%C6%B0%E1%BB%9Bc"
+  expect "fulltext đảo thứ tự từ (\"xương dùng nước\") → cùng total $ft_total" 200 ".data.total == $ft_total"
+  req GET "/api/dishes?mode=fulltext&q=n%C6%B0%E1%BB%9Bc%20d%C3%B9ng%20x%C6%B0%C6%A1ng&sort=gia-tang&tag=abc"
+  expect "fulltext bỏ qua sort và tiêu chí advanced (vẫn xếp theo điểm, không lỗi tag)" 200 ".ok and .data.total == $ft_total and (.data.items | [.[] | {id, score}] | $by_score)"
+  req GET "/api/dishes?mode=fulltext&q=pho"
+  expect "fulltext \"pho\" (không dấu) → 0 món: cấu hình simple không bỏ dấu" 200 '.data.total == 0'
+  req GET "/api/dishes?mode=fulltext&q=ph%E1%BB%9F&pageSize=1"
+  expect "fulltext \"phở\" → món có \"phở\" trong tên xếp đầu" 200 '.data.total > 0 and (.data.items[0].name | test("phở"; "i"))'
+  req GET "/api/dishes?mode=fulltext&q=x&page=0"
+  expect_code "fulltext page=0 → VALIDATION_FAILED fields.page" VALIDATION_FAILED '(.error.fields | keys) == ["page"]'
+
+  req GET "/api/dishes?mode=fuzzy&q=B%C3%B2%20l%C3%BAc%20l%E1%BA%AFt"
+  expect "fuzzy \"Bò lúc lắt\" (gõ sai) → \"Bò lúc lắc\" đứng đầu, mọi điểm ≥ 0.3" 200 '.data.items[0].name == "Bò lúc lắc" and all(.data.items[]; .score >= 0.3)'
+  req GET "/api/dishes?mode=fuzzy&q=G%E1%BB%8Fi%20cu%E1%BB%91ng%20t%C3%B4m%20th%E1%BB%8Bt"
+  expect "fuzzy \"Gỏi cuống tôm thịt\" → \"Gỏi cuốn tôm thịt\" đứng đầu" 200 '.data.items[0].name == "Gỏi cuốn tôm thịt"'
+  req GET "/api/dishes?mode=fuzzy&q=pho%20bo%20tai"
+  expect "fuzzy \"pho bo tai\" (không dấu) → 0 món (dưới ngưỡng 0.3)" 200 '.data.total == 0'
+  all=$(collect "mode=fuzzy&q=C%C6%A1m%20t%E1%BA%A5m%20su%E1%BB%9Dn%20n%C6%B0%E1%BB%9Bng")
+  BODY=$all; STATUS=200
+  expect "fuzzy \"Cơm tấm suờn nướng\" qua mọi trang: điểm ≥ 0.3, xếp theo điểm rồi id, không trùng" 200 "(length > 0) and all(.[]; .score >= 0.3) and ($by_score) and ([.[].id] | unique | length) == length"
+  req GET "/api/dishes?mode=fuzzy&q=C%C6%A1m%20t%E1%BA%A5m%20su%E1%BB%9Dn%20n%C6%B0%E1%BB%9Bng"
+  expect "  …total khớp số món gom được" 200 ".data.total == $(jq length <<<"$all")"
 }
 
 part_e() {

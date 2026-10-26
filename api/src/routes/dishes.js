@@ -6,7 +6,9 @@ import { jsonBody } from "../http/json-body.js";
 import { parseId } from "../validators/id.js";
 import { hasErrors } from "../validators/common.js";
 import { validateDish, checkDishRefs } from "../validators/dish.js";
-import { parseListQuery, basicAdvancedWhere, SORTS } from "../validators/list-query.js";
+import { parseListQuery, basicAdvancedWhere, SORTS, TEXT_MODES } from "../validators/list-query.js";
+import { fulltextPage } from "../search/fulltext.js";
+import { fuzzyPage } from "../search/fuzzy.js";
 import { TAG_SELECT, flatTags } from "../http/shapes.js";
 
 const router = Router();
@@ -35,6 +37,7 @@ const toListItem = ({ tags, ...dish }) => ({ ...dish, tags: flatTags(tags) });
 // Danh sách có phân trang + tìm kiếm tại server (plan mục 5.2–5.4):
 //   ?mode=basic|advanced &q= &page= &pageSize= &sort=      (basic: thêm ?searchIn=name,tag cho trang admin)
 //   advanced thêm: &tag=<id> &minPrice= &maxPrice= &available=true|false
+//   ?mode=fulltext|fuzzy &q= (bắt buộc) &page= &pageSize=   — xếp theo điểm phù hợp, mỗi món có thêm `score`
 // Trả data: { items, total, page, pageSize }. Không có kết quả / trang vượt phạm vi vẫn là thành công (items: []).
 router.get("/", async (req, res) => {
   const query = parseListQuery(req.query);
@@ -45,8 +48,10 @@ router.get("/", async (req, res) => {
   }
   if (hasErrors(errors)) return validationFailed(res, errors);
 
-  const where = basicAdvancedWhere(query);
   const { page, pageSize } = query;
+  if (TEXT_MODES.includes(query.mode)) return textSearch(res, query);
+
+  const where = basicAdvancedWhere(query);
   // `total` đếm CÙNG điều kiện với `items` (không đếm cả bảng). Hai câu chạy trong một transaction RepeatableRead
   // → cùng một ảnh chụp dữ liệu: không có cảnh total nói 37 mà items lại thiếu/thừa vì có người vừa thêm/xoá món.
   // Lọc + sắp xếp chạy trong SQL TRƯỚC LIMIT/OFFSET (take/skip) → sort áp dụng cho toàn bộ kết quả, không riêng trang này.
@@ -61,6 +66,20 @@ router.get("/", async (req, res) => {
   // Trang vượt phạm vi: giữ `page` như yêu cầu, items rỗng, total thật — không tự sửa về trang cuối.
   ok(res, { items: rows.map(toListItem), total, page, pageSize });
 });
+
+// Full-text / fuzzy: câu SQL (search/*.js) trả total + id và điểm của trang, đã xếp theo điểm.
+// Prisma nạp phần hiển thị (tag, đầu bếp) theo danh sách id, rồi giữ đúng thứ tự điểm của SQL.
+async function textSearch(res, { mode, q, page, pageSize }) {
+  const search = mode === "fulltext" ? fulltextPage : fuzzyPage;
+  const { total, hits } = await search(prisma, q, (page - 1) * pageSize, pageSize);
+  const rows = hits.length ? await prisma.dish.findMany({ where: { id: { in: hits.map((h) => h.id) } }, include: listInclude }) : [];
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  // Món vừa bị xoá giữa hai câu truy vấn → bỏ qua, không làm hỏng cả trang.
+  const items = hits
+    .filter((h) => byId.has(h.id))
+    .map((h) => ({ ...toListItem(byId.get(h.id)), score: Math.round(h.score * 1000) / 1000 }));
+  ok(res, { items, total, page, pageSize });
+}
 
 // Chi tiết. Id sai định dạng ("abc", "2.5") → NOT_FOUND ngay, không truy vấn (tránh lỗi kiểu dữ liệu thành 500).
 router.get("/:id", async (req, res) => {

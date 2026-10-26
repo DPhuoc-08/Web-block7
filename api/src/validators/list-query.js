@@ -11,8 +11,9 @@ import { parseId } from "./id.js";
 export const PAGE_SIZE_DEFAULT = 12;
 export const PAGE_SIZE_MAX = 100;
 
-// Bước 8 thêm "fulltext", "fuzzy".
-export const MODES = ["basic", "advanced"];
+// fulltext, fuzzy: chỉ đọc q (bắt buộc), xếp theo điểm phù hợp — không nhận sort và tiêu chí của advanced.
+export const MODES = ["basic", "advanced", "fulltext", "fuzzy"];
+export const TEXT_MODES = ["fulltext", "fuzzy"];
 
 // Giá trị `sort` là hợp đồng với SPA. Luôn thêm id làm thứ tự phụ → thứ tự xác định, các trang chia cùng một danh sách.
 export const SORTS = {
@@ -69,6 +70,9 @@ export function parseListQuery(query) {
   if (!Object.hasOwn(SORTS, sort)) errors.sort = "Cách sắp xếp không hợp lệ.";
 
   const result = { mode, q: raw.q, page, pageSize, sort, searchIn: ["name"], tagId: null, minPrice: null, maxPrice: null, available: null, errors };
+
+  // Full-text / fuzzy cần từ khoá: q trống không được âm thầm thành "lấy tất cả".
+  if (TEXT_MODES.includes(mode) && raw.q === null && !errors.q) errors.q = "Nhập từ khoá để tìm.";
 
   // Basic chỉ đọc q (+ searchIn của admin). Tham số của advanced gửi kèm basic bị bỏ qua, không lỗi.
   if (mode === "basic" && raw.searchIn !== null) {

@@ -201,3 +201,32 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - Seed lại sau khi test.
 
 **Trạng thái:** SPA (thực đơn, admin món) vẫn đọc `data` là mảng và gửi tham số cũ (`price=`, `available=1`) → hai trang danh sách chưa chạy cho tới bước 9 (admin) và 10 (thực đơn). Chi tiết món, form, đầu bếp, nguyên liệu không bị ảnh hưởng.
+
+## Bước 8 — API full-text + fuzzy
+**Đã làm:**
+- `src/search/fulltext.js`: `plainto_tsquery('simple', q)` trên document `setweight(to_tsvector('simple', coalesce(name,'')),'A') || setweight(to_tsvector('simple', coalesce(description,'')),'D')`, điểm `ts_rank`. Document tính trong câu truy vấn (không thêm cột — plan mục 3.2).
+- `src/search/fuzzy.js`: `similarity(name, q)` và `name % q`, ngưỡng `0.3` đặt bằng `set_config('pg_trgm.similarity_threshold', '0.3', true)` (= `SET LOCAL`) trong cùng transaction với câu tìm.
+- Mỗi chế độ là **một câu SQL** trả `total` + id/điểm của trang (`LIMIT/OFFSET` sau `ORDER BY score DESC, id ASC`) → cùng ảnh chụp dữ liệu, một vòng mạng. Prisma nạp tag, đầu bếp theo danh sách id rồi giữ đúng thứ tự điểm; mỗi món có thêm `score` (làm tròn 3 chữ số).
+- `list-query.js`: `mode` nhận thêm `fulltext`, `fuzzy`; hai chế độ này bắt buộc `q` (trống → `VALIDATION_FAILED fields.q`), bỏ qua `sort` và tiêu chí của advanced.
+- `prisma/sql/search-examples.sql` (mới): 4 chế độ + câu total/trang trên bảng `dishes`, kèm dòng "Kỳ vọng" tính từ seed; BEGIN/ROLLBACK.
+- `scripts/run-sql.js` (mới): chạy nguyên văn một file `.sql` bằng `pg` và in kết quả từng câu (`prisma db execute` chỉ báo chạy được, không in kết quả).
+- `check-api.sh` phần D thêm 18 kiểm tra fulltext/fuzzy; `collect` gom thêm `score` và chữ của tên + mô tả.
+
+**Quyết định và lý do:**
+- **Tên trọng số A, mô tả D** (như file mẫu của giảng viên): món có từ khoá trong tên xếp trước. Nhiều món vẫn cùng điểm (vd. "cá kho tộ": 11 món, 5 món đầu cùng 1.000) → thứ tự phụ `id` là bắt buộc để chia trang ổn định.
+- **`set_config(..., true)` thay vì `SET LOCAL` chuỗi cố định:** tương đương, nhưng gọi được qua `$queryRaw` có tham số.
+- **Không kết hợp fulltext/fuzzy với tag/giá/trạng thái** (plan mục 6.4 — không bắt buộc).
+
+**Lỗi dữ liệu phát hiện và sửa (seed):**
+1. *Tên món lặp chữ:* fuzzy "Gỏi cuống tôm thịt" trả kèm "Gỏi tôm tôm thịt". Bộ sinh ghép phần chính "tôm" với kiểu "tôm thịt" (2 tên: Gỏi/Nộm). Thêm quy tắc bỏ tên có hai chữ liền nhau giống nhau.
+2. Thay đổi trên làm lệch chuỗi ngẫu nhiên → bước phủ nguyên liệu báo **"Chân giò" không món nào dùng** (chỉ đến từ từ khoá "giò heo", lần bốc mới chọn "Giò heo"). Bộ sinh dừng trước khi ghi DB. Sửa bước phủ: ngoài kho theo loại, nhận cả món có tên khớp từ khoá dẫn tới nguyên liệu đó.
+- Seed mới: 1.200 món, 60 đầu bếp, 250 nguyên liệu; 2.106 món–tag, 5.357 món–nguyên liệu; 4 món giá 0, 180 món tạm hết; 0 món sai chuyên môn; 5 nguyên liệu không dùng; 0 tên lặp chữ; hash `798423e712f0ffdc` (seed 2 lần giống nhau). Món nước 224, Lẩu 61 — các kỳ vọng của `check-api.sh` không đổi.
+
+**Lỗi trong kiểm tra (không phải lỗi app):** thử hàm `literal_pattern` bằng `$queryRaw` của JavaScript cho kết quả sai (`Trà_` khớp 23 món): trong template literal, `'\'` bị hiểu thành nháy được escape nên câu SQL gửi đi khác câu trong file. Chạy nguyên văn file bằng `scripts/run-sql.js` thì đúng.
+
+**Đã kiểm tra:**
+- `check-api.sh`: **210/210 đạt** (A 75, B 19, C 34, D 43, E 39).
+- Fulltext: q trống → lỗi; "nước dùng xương" → mọi món chứa đủ 3 từ ở tên hoặc mô tả, xếp theo điểm rồi id qua mọi trang, không trùng id; đảo thứ tự từ → cùng total; `sort=gia-tang&tag=abc` bị bỏ qua; "pho" → 0 (không bỏ dấu); "phở" → món có "phở" trong tên đứng đầu.
+- Fuzzy (số đo thực tế): "Bò lúc lắt" → "Bò lúc lắc" 0.667 đứng đầu; "Gỏi cuống tôm thịt" → "Gỏi cuốn tôm thịt" 0.842; "Phở bò tá" → "Phở bò tái" 0.75; "Hủ tíu Nam Vang" → "Hủ tiếu Nam Vang" 0.65; "pho bo tai" → 0 món; "unrelatedxyz" → 0. Mọi điểm ≥ 0.3, total khớp số món gom qua các trang.
+- `node scripts/run-sql.js prisma/sql/search-examples.sql`: **14/14 kết quả khớp dòng "Kỳ vọng"** (vd. `Trà_` → 700; Lẩu + Miền Nam + 200–300k + còn phục vụ → 135, 352, 675, 1107, 1169; tên chứa "lẩu" 60 dòng nhưng tag Lẩu 61 vì "Combo 100% bò"; fuzzy ngưỡng 0.6 chỉ còn #9; total/trang = 60, {37,44,55}, {77,130,135}).
+- Thời gian một trang: fulltext ~0,41s, fuzzy ~0,56s.
