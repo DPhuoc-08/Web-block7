@@ -403,3 +403,67 @@ a.tag-chip:hover { border-color: var(--primary); color: var(--primary); text-dec
   .view-switch { display: flex; }
   .view-btn { flex: 1 1 0; justify-content: center; padding: 0 8px; }
 }
+
+/* ===== Hiệu ứng cơ bản (block7, plan mục 7.4) =====
+   Chỉ transition/keyframes trên màu, opacity, transform (không đổi kích thước → không xô bố cục), 150–300ms.
+   Bật "giảm chuyển động" trong hệ điều hành → tắt mọi chuyển động, chỉ giữ đổi màu (cuối mục này). */
+a, .btn, .chip, .page-num, .page-btn, .view-btn, .choice, input, select, textarea, tbody tr, tbody td {
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+/* Thẻ món: nổi nhẹ + bóng khi rê chuột. Đệm ngang 12px bù bằng lề âm → chữ vẫn thẳng hàng như cũ, bóng có chỗ thở.
+   Chỉ trên thiết bị có chuột (hover: hover): màn hình cảm ứng không bị "kẹt" trạng thái nổi sau khi chạm. */
+.dish-row { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+@media (hover: hover) {
+  .dish-row { padding-inline: 12px; margin-inline: -12px; border-radius: var(--radius); }
+  .dish-row:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgb(29 28 26 / .09); border-bottom-color: transparent; }
+}
+/* Món vừa nối (Tải thêm / Cuộn vô hạn): mờ → rõ, trượt lên 8px. Không giữ trạng thái cuối (không fill-mode)
+   để hiệu ứng nổi khi rê chuột vẫn dùng được transform sau khi xong. */
+.dish-row.appear { animation: appear .25s ease-out; }
+@keyframes appear { from { opacity: 0; transform: translateY(8px); } }
+/* Khung xương: thanh xám + một dải sáng mờ lướt qua (gradient nhẹ duy nhất của trang, chạy bằng transform). */
+.skeleton-list { padding-top: 28px; }
+.skeleton-list.menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); column-gap: 48px; }
+.skeleton-list.table { padding: 4px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.skeleton-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 72px; gap: 16px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.skeleton-list.table .skeleton-row { grid-template-columns: 56px minmax(0, 1fr) 96px; padding: 10px 0; }
+.skeleton-list.table .skeleton-row:last-child { border-bottom: 0; }
+.sk { display: block; position: relative; overflow: hidden; background: var(--surface-2); border-radius: 6px; }
+.sk::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgb(255 255 255 / .7), transparent); transform: translateX(-100%); animation: shimmer 1.4s ease-in-out infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+.sk-thumb { aspect-ratio: 4 / 3; border-radius: 8px; }
+.sk-lines { display: grid; gap: 8px; }
+.sk-line { height: 14px; }
+.sk-line.short { width: 60%; }
+.sk-price { height: 16px; }
+.skeleton-list.table .sk-thumb { height: 42px; aspect-ratio: auto; }
+/* Biểu tượng xoay trong nút "Tải thêm" khi đang tải trang tiếp (cả cuối danh sách cuộn vô hạn). */
+.spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Điểm nhận focus khi chuyển trang (useListTop): không vẽ khung focus cho một mốc vô hình / tiêu đề. */
+.list-anchor:focus { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-property: color, background-color, border-color, box-shadow !important; }
+  .dish-row:hover { transform: none; }
+}
+
+/* ===== Responsive + vùng chạm (block7, bước 15) ===== */
+/* Bảng admin món 821–1023px: 8 cột rộng ~940px không vừa khung → đệm ô và độ rộng tối thiểu nhỏ lại (dưới 821px đã là thẻ). */
+@media (min-width: 821px) and (max-width: 1023px) {
+  .table-wrap th, .table-wrap td { padding: 10px 8px; }
+  td[data-label="Tag"], td[data-label="Đầu bếp"] { min-width: 88px; }
+  td.title { min-width: 124px; }
+  td.actions .btn + .btn { margin-left: 4px; }
+}
+/* Thẻ admin (≤ 820px): tên món là link mở form sửa → vùng chạm cao 44px. */
+@media (max-width: 820px) {
+  .table-wrap td.title a { display: inline-flex; align-items: center; min-height: 44px; }
+  .skeleton-list.table { padding: 4px 12px; }
+}
+/* Điện thoại: chip lọc tag và chip tag ở trang chi tiết cao 44px cho dễ chạm; khung xương theo bố cục thẻ 88px. */
+@media (max-width: 600px) {
+  .chip, a.tag-chip { min-height: 44px; }
+  .result-line a { display: inline-flex; align-items: center; min-height: 44px; }
+  .skeleton-row { grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
+  .skeleton-row .sk-price { display: none; }
+}

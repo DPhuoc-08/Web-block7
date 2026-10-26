@@ -1,14 +1,14 @@
-import { useEffect, useRef } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import AdminSearch from "../../../components/AdminSearch.jsx";
 import { listDishes } from "../../../api/dishes.js";
 import { useLoad } from "../../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
-import { Loading, LoadError, InvalidQuery } from "../../../components/StatusView.jsx";
+import { SkeletonList, LoadError, InvalidQuery } from "../../../components/StatusView.jsx";
 import Pagination from "../../../components/Pagination.jsx";
 import { isBusiness, toQuery } from "../../../api/client.js";
 import AdminNav from "../../../components/AdminNav.jsx";
 import { useJustSaved } from "../../../hooks/useJustSaved.js";
+import { useListTop } from "../../../hooks/useListTop.js";
 import { formatPrice, tagNames } from "../../../format.js";
 import DishImage from "../../../components/DishImage.jsx";
 
@@ -37,21 +37,18 @@ export default function AdminDishListPage() {
   // Sửa/xoá xong quay về đúng URL danh sách này (giữ trang, từ khoá).
   const backState = { backTo: pathname + search };
 
-  // Đổi trang → đưa đầu bảng vào màn hình (nút phân trang nằm cuối bảng). Lần mở đầu tiên không cuộn.
-  const topRef = useRef(null);
-  const firstRender = useRef(true);
-  useEffect(() => {
-    if (firstRender.current) return void (firstRender.current = false);
-    topRef.current?.scrollIntoView({ block: "start" });
-  }, [rawPage]);
+  // Đổi trang → cuộn mượt về đầu bảng và đưa focus vào tiêu đề (nút phân trang nằm cuối bảng).
+  const topRef = useListTop(rawPage);
 
   const invalid = status === "error" && isBusiness(error, "VALIDATION_FAILED");
 
   return (
     <>
       <AdminNav current="dishes" />
-      <div className="toolbar" ref={topRef}>
-        <h1>Món ăn</h1>
+      <div className="toolbar">
+        <h1 ref={topRef} tabIndex={-1} className="list-anchor">
+          Món ăn
+        </h1>
         <Link className="btn btn-primary" to="/admin/dishes/new" state={backState}>
           + Thêm món
         </Link>
@@ -59,7 +56,7 @@ export default function AdminDishListPage() {
 
       <AdminSearch label="Tìm món" placeholder="Tìm theo tên món hoặc tag" count={status === "ok" ? data.total : null} />
 
-      {status === "loading" && <Loading />}
+      {status === "loading" && <SkeletonList rows={8} variant="table" />}
       {invalid && <InvalidQuery fields={error.fields} resetTo={pathname} resetLabel="Về trang 1" />}
       {status === "error" && !invalid && <LoadError onRetry={reload} />}
       {status === "ok" && data.total === 0 && <div className="panel empty">{q ? "Không có món nào khớp từ khoá." : "Chưa có món nào."}</div>}
@@ -126,7 +123,8 @@ export default function AdminDishListPage() {
       )}
       {status === "ok" && dishes.length > 0 && (
         <>
-          <p className="muted page-summary">
+          {/* role=status: chuyển trang thì trình đọc màn hình đọc "Món 21–40 trong 1200 món". */}
+          <p className="muted page-summary" role="status">
             Món {(data.page - 1) * data.pageSize + 1}–{(data.page - 1) * data.pageSize + dishes.length} trong {data.total} món
           </p>
           <Pagination page={data.page} totalPages={totalPages} hrefFor={hrefFor} label="Phân trang món ăn" />

@@ -19,6 +19,7 @@ export default function LoadMore({ pending, end, error, shown, total, onLoad }) 
         </p>
       )}
       <button type="button" className="btn" onClick={onLoad} disabled={pending} aria-busy={pending}>
+        {pending && <span className="spinner" aria-hidden="true" />}
         {pending ? "Đang tải thêm…" : error ? "Thử lại" : "Tải thêm"}
       </button>
       {total !== null && (

@@ -7,10 +7,11 @@ import TagList from "./TagList.jsx";
 // trang chi tiết tự tải lại món từ API theo id, không nhận object món từ trang danh sách.
 // state.backTo: URL danh sách đang lọc → nút "← Thực đơn" ở trang chi tiết quay về đúng bộ lọc này.
 // dish.score (chỉ có ở toàn văn / gần đúng): điểm phù hợp API trả về → hiện nhỏ để thấy vì sao món đứng ở vị trí đó.
-export default function DishRow({ dish }) {
+// appear: món vừa được nối thêm (Tải thêm / Cuộn vô hạn) → hiện dần một lần khi gắn vào trang (plan mục 7.4).
+export default function DishRow({ dish, appear = false }) {
   const { pathname, search } = useLocation();
   return (
-    <Link className={`dish-row${dish.available ? "" : " unavailable"}`} to={`/dishes/${dish.id}`} state={{ backTo: pathname + search }}>
+    <Link className={`dish-row${dish.available ? "" : " unavailable"}${appear ? " appear" : ""}`} to={`/dishes/${dish.id}`} state={{ backTo: pathname + search }}>
       {/* Không có ảnh → khung ghi loại món (tag đầu tiên) thay vì để trống. */}
       <DishImage className="dish-thumb" src={dish.imageUrl} alt={dish.name} loading="lazy" width="120" height="90" emptyText={dish.tags[0]?.name ?? "Chưa có ảnh"} />
       <span>

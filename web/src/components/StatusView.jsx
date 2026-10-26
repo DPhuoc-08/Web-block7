@@ -11,6 +11,28 @@ export function Loading({ text = "Đang tải…" }) {
   );
 }
 
+// Khung xương khi đang tải danh sách (thực đơn, bảng admin món — plan mục 7.4): giữ chỗ đúng hình dạng kết quả,
+// dữ liệu về thì thay vào mà trang không bị nhảy. Trình đọc màn hình chỉ nghe "Đang tải…", các thanh xám bị ẩn.
+// Mặc định 12 dòng = một trang thực đơn: chuyển trang thì cuộn về đầu danh sách NGAY lúc đang tải; khung xương ngắn
+// hơn danh sách thật làm trang thấp đi, trình duyệt không cuộn tới được đầu danh sách (đo ở bước 15).
+export function SkeletonList({ rows = 12, variant = "menu" }) {
+  return (
+    <div className={`skeleton-list ${variant}`} role="status" aria-live="polite">
+      <span className="sr-only">Đang tải…</span>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="skeleton-row" aria-hidden="true">
+          <span className="sk sk-thumb" />
+          <span className="sk-lines">
+            <span className="sk sk-line" />
+            <span className="sk sk-line short" />
+          </span>
+          <span className="sk sk-price" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Lỗi kỹ thuật (API tắt, sai URL, lỗi máy chủ): thông báo chung + Thử lại. Không hiện "không tìm thấy".
 export function LoadError({ onRetry }) {
   return (

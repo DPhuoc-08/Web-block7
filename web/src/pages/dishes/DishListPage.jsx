@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { listDishes } from "../../api/dishes.js";
 import { listTags } from "../../api/tags.js";
 import { isBusiness, toQuery } from "../../api/client.js";
 import { useLoad } from "../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle.js";
-import { Loading, LoadError, InvalidQuery } from "../../components/StatusView.jsx";
+import { SkeletonList, LoadError, InvalidQuery } from "../../components/StatusView.jsx";
 import DishRow from "../../components/DishRow.jsx";
 import SearchPanel from "../../components/SearchPanel.jsx";
 import Pagination from "../../components/Pagination.jsx";
@@ -13,7 +13,8 @@ import ViewSwitch from "../../components/ViewSwitch.jsx";
 import LoadMore from "../../components/LoadMore.jsx";
 import InfiniteSentinel from "../../components/InfiniteSentinel.jsx";
 import { useAppendList } from "../../hooks/useAppendList.js";
-import { readQuery, toApiParams, toPageParams, conditionKey, isFiltered, TEXT_MODES } from "../../listQuery.js";
+import { useListTop } from "../../hooks/useListTop.js";
+import { readQuery, toApiParams, toPageParams, conditionKey, isFiltered, TEXT_MODES, PAGE_SIZE } from "../../listQuery.js";
 
 // Thực đơn (/dishes). Điều kiện tìm/lọc/sắp xếp nằm trên URL của TRANG (listQuery.js): Reload, copy link,
 // Back/Forward mở lại đúng điều kiện. Phân trang tại server cho cả 3 cách hiển thị (plan mục 0): mỗi request
@@ -85,13 +86,15 @@ function NoResults({ query, clearUrl }) {
   );
 }
 
-function DishGrid({ dishes }) {
+// appearFrom: món từ vị trí này trở đi là món nối thêm → có hiệu ứng hiện dần; trang đầu hiện ngay, không hiệu ứng.
+// Hiệu ứng chỉ chạy khi phần tử được gắn vào trang (key = id món), các món đã có không chạy lại khi nối trang sau.
+function DishGrid({ dishes, appearFrom = Infinity }) {
   return (
     <section className="menu-group">
       <h2 className="sr-only">Kết quả</h2>
       <div className="menu-grid flat">
-        {dishes.map((dish) => (
-          <DishRow key={dish.id} dish={dish} />
+        {dishes.map((dish, i) => (
+          <DishRow key={dish.id} dish={dish} appear={i >= appearFrom} />
         ))}
       </div>
     </section>
@@ -117,7 +120,7 @@ function AppendMenu({ infinite }) {
     <>
       <MenuHead query={query} tagList={tagList} fieldErrors={invalid ? list.error.fields : {}} onApply={apply} />
       {invalid && <InvalidQuery fields={list.error.fields} resetTo={clearUrl} resetLabel="Xoá bộ lọc" />}
-      {!invalid && firstLoad && list.pending && <Loading />}
+      {!invalid && firstLoad && list.pending && <SkeletonList />}
       {!invalid && firstLoad && list.error && <LoadError onRetry={list.loadNext} />}
       {!firstLoad && (
         <>
@@ -126,7 +129,7 @@ function AppendMenu({ infinite }) {
             <NoResults query={query} clearUrl={clearUrl} />
           ) : (
             <>
-              <DishGrid dishes={list.items} />
+              <DishGrid dishes={list.items} appearFrom={PAGE_SIZE} />
               {infinite && <InfiniteSentinel onVisible={list.loadNext} disabled={list.end || Boolean(list.error)} itemCount={list.items.length} />}
               <LoadMore pending={list.pending} end={list.end} error={list.error} shown={list.items.length} total={list.total} onLoad={list.loadNext} />
             </>
@@ -151,20 +154,17 @@ function PagedMenu() {
   // Link trang n: giữ nguyên bộ điều kiện, chỉ đổi page.
   const hrefFor = (n) => `/dishes${toQuery(toPageParams({ ...query, page: n > 1 ? String(n) : "" }))}`;
 
-  // Đổi trang → đưa đầu danh sách vào màn hình (nút phân trang ở cuối). Lần mở đầu không cuộn.
-  const listTopRef = useRef(null);
-  const firstRender = useRef(true);
-  useEffect(() => {
-    if (firstRender.current) return void (firstRender.current = false);
-    listTopRef.current?.scrollIntoView({ block: "start" });
-  }, [query.page]);
+  // Đổi trang → cuộn mượt về đầu danh sách và đưa focus tới đó (nút phân trang ở cuối).
+  const listTopRef = useListTop(query.page);
 
   return (
     <>
       <MenuHead query={query} tagList={tagList} fieldErrors={invalid ? list.error.fields : {}} onApply={apply} />
 
-      <div ref={listTopRef} className="list-anchor" />
-      {list.status === "loading" && <Loading />}
+      <div ref={listTopRef} className="list-anchor" tabIndex={-1}>
+        <span className="sr-only">Danh sách món, trang {query.page || 1}</span>
+      </div>
+      {list.status === "loading" && <SkeletonList />}
       {invalid && <InvalidQuery fields={list.error.fields} resetTo={clearUrl} resetLabel="Xoá bộ lọc" />}
       {list.status === "error" && !invalid && <LoadError onRetry={list.reload} />}
       {data && (

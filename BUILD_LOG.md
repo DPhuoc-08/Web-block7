@@ -324,3 +324,48 @@ Chạy trên dữ liệu seed đầy đủ (1.200 món), API :3000, SPA bản pr
 **API:** `check-api.sh` **210/210**; `API_BROKEN` **75/75**. Seed lại sau khi test (hash dữ liệu không đổi).
 
 **Còn lại (giai đoạn II):** responsive + truy cập cho phần mới và hiệu ứng cơ bản (bước 15), bằng chứng nộp (16), README + tài liệu trình bày (17), index tùy chọn (18). Ghi chú cho bước 15: bảng admin món ở 821–900px rộng hơn khung ~85px (cuộn trong khung).
+
+## Bước 15 — Responsive, truy cập cho phần mới, hiệu ứng cơ bản (plan mục 7.4)
+**Đo trước khi sửa** (Chrome headless, 375 / 820 / 1280px, 6 trang: thực đơn số trang + lọc, Tải thêm, chi tiết, form món, form đầu bếp, admin món): không trang nào cuộn ngang; vùng chạm dưới 44px ở 375px: chip lọc tag (40px), chip tag ở trang chi tiết (32px), link tên món trên thẻ admin (26px), link "Xoá bộ lọc" (24px); bảng admin món rộng 943px trong khung 779–858px ở 821–1023px (không chỉ 821–900px như ghi ở bước 14).
+
+**Đã làm:**
+- **Hiệu ứng (chỉ các mục trong bảng 7.4):**
+  - Transition màu / nền / viền / bóng 150ms cho link, nút, chip, ô số trang, công tắc hiển thị, ô nhập, ô chọn, dòng bảng.
+  - Thẻ món nổi 2px + bóng khi rê chuột, chỉ trên thiết bị có chuột (`@media (hover: hover)`), nên màn hình cảm ứng không bị kẹt trạng thái nổi.
+  - `SkeletonList` (`StatusView.jsx`) thay chữ "Đang tải…" ở thực đơn (cả 3 kiểu) và admin món. Thanh xám có một dải sáng mờ lướt qua bằng `transform` trên `::after`; đây là gradient nhẹ duy nhất của trang.
+  - Món vừa nối (Tải thêm / Cuộn) hiện dần: mờ → rõ, trượt lên 8px, 250ms. `DishGrid` nhận `appearFrom={PAGE_SIZE}`, nên trang đầu không có hiệu ứng.
+  - Biểu tượng xoay trong nút "Đang tải thêm…" (dùng chung cho cuối danh sách cuộn vô hạn).
+  - Chuyển trang thì cuộn mượt về đầu danh sách.
+  - `prefers-reduced-motion: reduce` tắt mọi animation và transition chuyển động, chỉ giữ đổi màu; chuyển trang nhảy thẳng.
+- **Truy cập:**
+  - `hooks/useListTop.js` (mới, dùng cho thực đơn số trang và admin món): chuyển trang thì đưa focus tới đầu danh sách. Thực đơn có mốc `tabIndex=-1` đọc "Danh sách món, trang N"; admin là tiêu đề "Món ăn". Như vậy người dùng bàn phím / trình đọc màn hình không bị bỏ lại ở nút phân trang đã biến mất. Hook thay hai đoạn `scrollIntoView` lặp lại ở hai trang.
+  - Tóm tắt trang admin ("Món 21–40 trong 1200 món") có `role=status`. Dòng số kết quả thực đơn đã có `aria-live` từ bước 10.
+- **Responsive / vùng chạm:**
+  - Chip lọc tag, chip tag ở chi tiết, link "Xoá bộ lọc" cao 44px ở ≤ 600px.
+  - Link tên món trên thẻ admin cao 44px ở ≤ 820px.
+  - Bảng admin món 821–1023px: đệm ô 8px, cột Tên / Tag / Đầu bếp được hẹp hơn.
+
+**Quyết định và lý do:**
+- **Khung xương thực đơn 12 dòng = một trang.** Bản đầu dùng 6 dòng: khi chuyển trang, khung xương ngắn làm trang thấp đi, trình duyệt chỉ cuộn tới được cuối trang ngắn, đầu danh sách dừng giữa màn hình (đo: top = 377px thay vì 16px). Đó cũng là lý do của khung xương: giữ chỗ đúng kích thước kết quả.
+- **Cuộn mượt bằng tham số `behavior` trong JS**, không dùng `scroll-behavior: smooth` cho cả trang: CSS sẽ làm mọi lần cuộn (kể cả cuộn khi đổi route) đều mượt, ngoài phạm vi mục 7.4.
+- **Hiệu ứng hiện dần không giữ trạng thái cuối** (không `animation-fill-mode`): nếu giữ, `transform` của animation đè lên `transform` khi rê chuột, nên món đã nối sẽ không nổi được nữa.
+- **Thẻ admin vẫn giữ ngưỡng 820px**, chỉ thu đệm và độ rộng cột cho khoảng 821–1023px. Đẩy ngưỡng thẻ lên 1023px sẽ đổi luôn bảng đầu bếp / nguyên liệu, vốn đang vừa khung.
+
+**Phương án đã bỏ:** mở rộng vùng chạm của chip tag bằng `::after` âm lề (giữ chip nhỏ 32px). Các chip xếp nhiều hàng, cách nhau 6px, nên vùng chạm của hai hàng sẽ chồng lên nhau. Chọn cách tăng chiều cao thật trên điện thoại.
+
+**Đo lại sau khi sửa:** 6 trang × 3 độ rộng không cuộn ngang; ở 375px không còn phần tử tương tác (ngoài checkbox/radio nằm trong nhãn 44px) thấp hơn 44px; bảng admin vừa khung: 779/779 (821px), 818/818 (860px), 858/858 (900px), 982/982 (1024px).
+
+**Đã kiểm tra** (Chrome headless trên bản production, kịch bản bước 15, **24/24 đạt**):
+- Mạng chậm 1,5s → thực đơn và admin món hiện khung xương `role=status` (có chữ ẩn "Đang tải…"), không còn dòng `.loading`; dải sáng chạy animation `shimmer`; dữ liệu về → khung xương biến mất.
+- Rê chuột (sự kiện chuột thật qua `Input.dispatchMouseEvent`) → thẻ món `translateY(-2px)` + bóng; chip, ô số trang có transition màu 150ms.
+- Tải thêm: trang đầu 0 món có class `appear`; nối trang 2 → đúng món 13–24 có `appear`; ≤ 12 animation `appear` đang chạy; xong hiệu ứng, rê chuột món đã nối vẫn nổi. Mạng chậm → nút khoá, có biểu tượng xoay (animation `spin`).
+- Bấm trang 2 → focus ở mốc "Danh sách món, trang 2", `scrollIntoView` được gọi đúng một lần với `behavior: smooth`, mốc dừng cách đỉnh màn hình 16px (`scroll-margin`). Admin bấm trang 2 → focus tiêu đề "Món ăn", tóm tắt trang có `role=status`.
+- Bật giảm chuyển động (`Emulation.setEmulatedMedia`): khung xương đứng yên, biểu tượng không xoay (chữ "Đang tải thêm…" vẫn còn), món nối thêm không có animation (`document.getAnimations()` rỗng), rê chuột không nổi nhưng vẫn đổi màu, chuyển trang gọi `behavior: auto`.
+- Ảnh 1280 / 820 / 375px (thực đơn, Tải thêm, chi tiết, form món, admin món) không cuộn ngang; không lỗi console. Ở 375px với cảm ứng giả lập (`hover: none`), thẻ món thẳng lề 16px như phần còn lại của trang.
+
+**Lỗi trong kịch bản kiểm tra (không phải lỗi app):**
+- (1) Rê chuột lên món nằm ngoài màn hình nên không có `:hover`; sửa: cuộn món vào giữa màn hình trước.
+- (2) Kiểm tra cuộn mượt bằng cách lấy mẫu `scrollY` mỗi khung hình không dùng được. Chrome headless (không GPU) chặn luồng chính 300–700ms khi render; đo bằng PerformanceObserver `longtask` thấy hiện tượng này **cả trên bản build trước bước 15** (`fe61558`), nên không do thay đổi này. Vì vậy không lấy được mẫu nào giữa lúc cuộn. Đổi sang ghi lại tham số app truyền cho `scrollIntoView` + đo vị trí cuối. Riêng việc Chrome có cuộn mượt khi nhận `smooth` thì đo độc lập: 805 → 0 qua khoảng 30 khung hình.
+- (3) Ở trang 1 / 60 của admin, dải số là 1 2 … 60, nên không có nút "Trang 3"; đổi sang trang 2.
+
+**Hồi quy:** `check-api.sh` **210/210**; kịch bản bước 9 **17/17**, bước 10 **22/22** (chờ thêm `.skeleton-list` biến mất thay vì chỉ `.loading`), bước 11–13 **16/16** (cuộn hết 1.200 món đủ id 1–1200, không trùng, 50s), bước 14 **19/19**. Seed lại sau khi test (`npx prisma db seed`, in host Singapore trước khi xoá), hash dữ liệu `798423e712f0ffdc` không đổi.
