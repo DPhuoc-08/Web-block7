@@ -1,159 +1,108 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useEffect, useRef } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { listDishes } from "../../api/dishes.js";
 import { listTags } from "../../api/tags.js";
-import { toQuery } from "../../api/client.js";
+import { isBusiness, toQuery } from "../../api/client.js";
 import { useLoad } from "../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle.js";
-import { Loading, LoadError } from "../../components/StatusView.jsx";
+import { Loading, LoadError, InvalidQuery } from "../../components/StatusView.jsx";
 import DishRow from "../../components/DishRow.jsx";
-import { PRICE_RANGES, SORTS, readFilters, filtersToParams, isFiltered, groupByMainTag } from "../../menuOptions.js";
+import SearchPanel from "../../components/SearchPanel.jsx";
+import Pagination from "../../components/Pagination.jsx";
+import { readQuery, toApiParams, toPageParams, isFiltered, TEXT_MODES } from "../../listQuery.js";
 
-// Thực đơn (/dishes). Mọi tiêu chí lọc nằm trên URL của TRANG (/dishes?q=&tag=&price=&available=1&sort=):
-// lưu/gửi được link kết quả, Reload hay Back vẫn ra đúng kết quả. Trang đọc URL rồi gọi
-// GET /api/dishes với cùng các tham số (URL trang và URL API là hai thứ khác nhau).
+// Thực đơn (/dishes). Điều kiện tìm/lọc/sắp xếp và số trang nằm trên URL của TRANG (listQuery.js):
+// Reload, copy link, Back/Forward mở lại đúng kết quả. Trang đọc URL rồi gọi GET /api/dishes cho ĐÚNG MỘT trang
+// (phân trang tại server — plan mục 0): Network chỉ nhận 12 món dạng JSON mỗi lần, không tải cả 1.200 món.
 export default function DishListPage() {
   useDocumentTitle("Thực đơn");
-  const [searchParams, setSearchParams] = useSearchParams();
-  const filters = readFilters(searchParams);
-  const key = searchParams.toString();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const query = readQuery(searchParams);
+  const urlKey = searchParams.toString();
 
-  // Chỉ ô tên món giữ chữ đang gõ (áp dụng khi Enter / Tìm); đồng bộ lại khi URL đổi (Back/Forward, "Xoá bộ lọc").
-  // Các ô chọn đọc thẳng từ URL.
-  const [q, setQ] = useState(filters.q);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => setQ(readFilters(searchParams).q), [key]);
-
-  // Hai lần tải riêng: tag (cho chip) tải một lần khi mở trang; danh sách món tải lại mỗi khi bộ lọc trên URL đổi
-  // → chip không bị ẩn/hiện mỗi lần lọc. Chip chỉ gồm tag đang có món.
+  // Tag tải một lần khi mở trang (chip, ô chọn tag); danh sách món tải lại mỗi khi URL đổi.
   const tags = useLoad((signal) => listTags({ signal }), []);
-  const chipTags = tags.status === "ok" ? tags.data.filter((t) => t.dishCount > 0) : [];
-  const { status, data: dishes, reload } = useLoad((signal) => listDishes(filtersToParams(filters), { signal }), [key]);
+  const tagList = tags.status === "ok" ? tags.data.filter((t) => t.dishCount > 0) : [];
 
-  // Mọi điều khiển lọc áp dụng cùng một cách: đổi query trên URL → trang tự gọi lại API. Đi kèm chữ đang có
-  // trong ô tên món, để danh sách luôn khớp với những gì người dùng thấy trên form.
-  const next = (changes) => filtersToParams({ ...filters, q: q.trim(), ...changes });
+  // Toàn văn / gần đúng mà URL không có từ khoá: không gọi API (API sẽ báo lỗi q), form tự báo "Nhập từ khoá".
+  const needsQ = TEXT_MODES.includes(query.mode) && !query.q;
+  const list = useLoad((signal) => (needsQ ? Promise.resolve(null) : listDishes(toApiParams(query), { signal })), [urlKey]);
+  const invalid = list.status === "error" && isBusiness(list.error, "VALIDATION_FAILED");
+  const data = list.status === "ok" ? list.data : null;
+  const dishes = data?.items ?? [];
+  const totalPages = data ? Math.ceil(data.total / data.pageSize) : 0;
 
-  // Chip tag: link tới URL trang với tag mới (id), giữ nguyên các tiêu chí khác.
-  const chipUrl = (tag) => `/dishes${toQuery(next({ tag }))}`;
-  // Khoảng giá, sắp xếp, "còn phục vụ": áp dụng ngay khi đổi, như bấm chip.
-  const apply = (changes) => setSearchParams(next(changes));
+  // Áp dụng điều kiện mới → URL mới, về trang 1 (kết quả mới); giữ cách hiển thị đang chọn.
+  const apply = (next) => navigate(`/dishes${toQuery(toPageParams({ ...next, view: query.view, page: "" }))}`);
+  // Link trang n: giữ nguyên bộ điều kiện, chỉ đổi page.
+  const hrefFor = (n) => `/dishes${toQuery(toPageParams({ ...query, page: n > 1 ? String(n) : "" }))}`;
+  const clearUrl = `/dishes${toQuery(toPageParams({ mode: "basic", q: "", view: query.view, page: "" }))}`;
 
-  function onSearch(event) {
-    // Chặn form tải lại trang; ô tên món chỉ áp dụng khi Enter / Tìm (không gọi API theo từng phím).
-    event.preventDefault();
-    apply({});
-  }
-
-  const groups = status === "ok" && !filters.sort ? groupByMainTag(dishes) : null;
+  // Đổi trang → đưa đầu danh sách vào màn hình (nút phân trang ở cuối). Lần mở đầu không cuộn.
+  const listTopRef = useRef(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) return void (firstRender.current = false);
+    listTopRef.current?.scrollIntoView({ block: "start" });
+  }, [query.page]);
 
   return (
     <>
       <div className="page-head">
         <h1>Thực đơn</h1>
-        <p>Chọn món để xem mô tả, giá và tình trạng phục vụ.</p>
+        <p>Tìm món theo tên, tag, khoảng giá; chọn món để xem mô tả, giá và tình trạng phục vụ.</p>
       </div>
 
-      <section className="filters" aria-label="Lọc món">
-        {tags.status === "ok" && (
-          <nav className="chips" aria-label="Lọc theo tag">
-            <Link className="chip" to={chipUrl("")} aria-current={filters.tag ? "false" : "true"}>
-              Tất cả
-            </Link>
-            {chipTags.map((t) => (
-              <Link key={t.id} className="chip" to={chipUrl(String(t.id))} aria-current={filters.tag === String(t.id) ? "true" : "false"}>
-                {t.name}
-              </Link>
-            ))}
-          </nav>
-        )}
+      <SearchPanel query={query} tags={tagList} fieldErrors={invalid ? list.error.fields : {}} onApply={apply} />
 
-        <form className="filter-row" role="search" onSubmit={onSearch}>
-          {/* Nút Tìm đặt sát ô tên: nó chỉ áp dụng ô này (các ô chọn bên cạnh tự áp dụng khi đổi). */}
-          <div className="field grow">
-            <label htmlFor="menu-q">Tên món</label>
-            <div className="search-box">
-              <input id="menu-q" type="search" name="q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ví dụ: phở, bún, cơm" />
-              <button type="submit" className="btn btn-primary">
-                Tìm
-              </button>
-            </div>
-          </div>
-          <label className="field fixed">
-            <span>Khoảng giá</span>
-            <select name="price" value={filters.price} onChange={(e) => apply({ price: e.target.value })}>
-              <option value="">Mọi mức giá</option>
-              {PRICE_RANGES.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field fixed">
-            <span>Sắp xếp</span>
-            <select name="sort" value={filters.sort} onChange={(e) => apply({ sort: e.target.value })}>
-              {SORTS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="check">
-            <input type="checkbox" name="available" checked={filters.available} onChange={(e) => apply({ available: e.target.checked })} />
-            Chỉ món còn phục vụ
-          </label>
-        </form>
-      </section>
-
-      {status === "loading" && <Loading />}
-      {status === "error" && <LoadError onRetry={reload} />}
-      {status === "ok" && (
+      <div ref={listTopRef} className="list-anchor" />
+      {list.status === "loading" && <Loading />}
+      {invalid && <InvalidQuery fields={list.error.fields} resetTo={clearUrl} resetLabel="Xoá bộ lọc" />}
+      {list.status === "error" && !invalid && <LoadError onRetry={list.reload} />}
+      {data && (
         <>
-          <div className="result-line" role="status">
+          <div className="result-line" role="status" aria-live="polite">
             <span>
-              {dishes.length} món{isFiltered(filters) ? " khớp bộ lọc" : ""}
-              {filters.q && <> cho “{filters.q}”</>}
+              {data.total} món{isFiltered(query) ? " khớp điều kiện" : ""}
+              {query.q && <> cho “{query.q}”</>}
+              {TEXT_MODES.includes(query.mode) && data.total > 0 && " · xếp theo độ phù hợp"}
             </span>
-            {isFiltered(filters) && <Link to="/dishes">Xoá bộ lọc</Link>}
+            {isFiltered(query) && <Link to={clearUrl}>Xoá bộ lọc</Link>}
           </div>
 
-          {dishes.length === 0 ? (
-            // Danh sách rỗng là kết quả thành công (data = []), không phải lỗi.
+          {data.total === 0 ? (
+            // Không có kết quả là thành công (items: [], total: 0), không phải lỗi.
             <div className="empty">
-              <strong>{isFiltered(filters) ? "Không có món nào khớp bộ lọc." : "Chưa có món nào."}</strong>
-              {isFiltered(filters) && (
+              <strong>{isFiltered(query) ? "Không có món nào khớp điều kiện." : "Chưa có món nào."}</strong>
+              {query.mode === "fuzzy" && "Tìm gần đúng không bỏ dấu: thử gõ có dấu, hoặc dùng chế độ Cơ bản. "}
+              {isFiltered(query) && (
                 <>
-                  Thử bỏ bớt tiêu chí hoặc <Link to="/dishes">xem toàn bộ thực đơn</Link>.
+                  Thử bỏ bớt tiêu chí hoặc <Link to={clearUrl}>xem toàn bộ thực đơn</Link>.
                 </>
               )}
             </div>
-          ) : groups ? (
-            // Sắp xếp mặc định → nhóm theo tag loại món như thực đơn in; chọn sắp xếp khác → một danh sách phẳng.
-            <div className="menu-columns">
-              {groups.map((g) => (
-                <section key={g.tag.id ?? "khac"} className="menu-group">
-                  <h2>
-                    {g.tag.name} <small>{g.dishes.length} món</small>
-                  </h2>
-                  <div className="menu-grid">
-                    {g.dishes.map((dish) => (
-                      <DishRow key={dish.id} dish={dish} hideTagId={g.tag.id} />
-                    ))}
-                  </div>
-                </section>
-              ))}
+          ) : dishes.length === 0 ? (
+            // Trang vượt phạm vi (sửa tay URL): thành công nhưng items rỗng.
+            <div className="empty">
+              <strong>Trang {data.page} không có món nào.</strong>
+              <Link to={hrefFor(totalPages)}>Về trang cuối ({totalPages})</Link>
             </div>
           ) : (
-            <section className="menu-group">
-              <h2 className="sr-only">Kết quả</h2>
-              <div className="menu-grid flat">
-                {dishes.map((dish) => (
-                  <DishRow key={dish.id} dish={dish} />
-                ))}
-              </div>
-            </section>
+            <>
+              <section className="menu-group">
+                <h2 className="sr-only">Kết quả</h2>
+                <div className="menu-grid flat">
+                  {dishes.map((dish) => (
+                    <DishRow key={dish.id} dish={dish} />
+                  ))}
+                </div>
+              </section>
+              <p className="muted page-summary">
+                Món {(data.page - 1) * data.pageSize + 1}–{(data.page - 1) * data.pageSize + dishes.length} trong {data.total} món
+              </p>
+              <Pagination page={data.page} totalPages={totalPages} hrefFor={hrefFor} label="Phân trang thực đơn" />
+            </>
           )}
         </>
       )}

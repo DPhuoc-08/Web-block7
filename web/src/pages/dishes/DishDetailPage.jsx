@@ -76,7 +76,7 @@ export default function DishDetailPage() {
 
           {/* Tag đầu tiên (id nhỏ nhất) là loại món → gợi ý xem các món cùng loại. */}
           {dish.tags.length > 0 && (
-            <Link className="btn" to={`/dishes?tag=${dish.tags[0].id}`}>
+            <Link className="btn" to={`/dishes?mode=advanced&tag=${dish.tags[0].id}`}>
               Xem thêm {dish.tags[0].name}
             </Link>
           )}

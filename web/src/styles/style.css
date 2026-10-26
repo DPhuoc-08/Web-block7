@@ -369,3 +369,21 @@ a.tag-chip:hover { border-color: var(--primary); color: var(--primary); text-dec
   td[data-label="Tag"], td[data-label="Đầu bếp"] { white-space: normal; min-width: 120px; }
   td.title { white-space: normal; min-width: 180px; }
 }
+/* Khung tìm thực đơn (block7): hàng chính (kiểu tìm + từ khoá), nhóm tiêu chí nâng cao, sắp xếp. */
+.search-form { display: grid; gap: 10px; }
+.search-main, .search-advanced, .search-sort { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.search-form .field { display: grid; gap: 4px; font-size: .85rem; font-weight: 600; color: var(--muted); }
+.search-form .field.grow { flex: 1 1 280px; }
+.search-form .field.fixed { flex: 0 1 190px; }
+.search-advanced .field { flex: 1 1 150px; }
+.search-form .field > .error { color: var(--danger); font-weight: 500; }
+.search-form .field.invalid input, .search-form .field.invalid select { border-color: var(--danger); }
+.search-form select:disabled { color: var(--muted); background: var(--surface-2); }
+.mode-hint { margin: -4px 0 0; font-size: .85rem; }
+.list-anchor { scroll-margin-top: 16px; }
+/* Điểm phù hợp (toàn văn / gần đúng) cạnh tag của món. */
+.score { font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  .search-main .field.fixed, .search-sort .field.fixed { flex: 1 1 100%; }
+  .search-advanced { display: grid; grid-template-columns: 1fr 1fr; }
+}

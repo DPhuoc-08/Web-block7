@@ -255,3 +255,26 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - 375px: dải số ẩn, "Trang 2/60", không cuộn ngang. Không lỗi console. `vite build` thành công. Seed lại sau khi test.
 
 **Trạng thái:** thực đơn `/dishes` vẫn đọc `data` là mảng và gửi tham số cũ → làm ở bước 10.
+
+## Bước 10 — SPA: thực đơn với khung tìm 4 chế độ và số trang
+**Đã làm:**
+- `listQuery.js` (mới, thay `menuOptions.js` đã xoá): đọc điều kiện từ URL trang (`mode, q, tag, minPrice, maxPrice, available, sort, view, page`); `toApiParams` chỉ gửi tham số thuộc chế độ (basic: q + sort; advanced: thêm tag, giá, trạng thái; fulltext/fuzzy: chỉ q) + `pageSize=12`; `toPageParams` dựng URL trang gọn (bỏ giá trị mặc định); giá trị lạ trên URL giữ nguyên để API báo lỗi.
+- `components/SearchPanel.jsx` (mới): chip tag (lối tắt `mode=advanced&tag=<id>`), ô Kiểu tìm + dòng giải thích chế độ, ô từ khoá + Tìm, nhóm tiêu chí nâng cao (Tag, Giá từ, Giá đến, Trạng thái: Mọi / Còn phục vụ / Tạm hết), Sắp xếp (khoá "Theo độ phù hợp" ở toàn văn / gần đúng). Lỗi `VALIDATION_FAILED` của API hiện cạnh đúng ô.
+- `DishListPage` viết lại: gọi đúng một trang (`pageSize=12`), dòng kết quả theo `total`, danh sách phẳng (bỏ nhóm theo loại — plan mục 10.8), "Món 13–24 trong 61 món", `Pagination`, trang vượt phạm vi, `InvalidQuery`, đổi trang thì cuộn tới đầu danh sách. Toàn văn / gần đúng mà URL thiếu từ khoá → không gọi API.
+- `DishRow`: hiện điểm phù hợp (`score`) ở toàn văn / gần đúng; bỏ `hideTagId` (không còn nhóm). Chip tag ở trang chi tiết và nút "Xem thêm …" trỏ tới `/dishes?mode=advanced&tag=<id>` (tag là tiêu chí của Nâng cao).
+
+**Quyết định và lý do:**
+- **Ô chữ và ô Kiểu tìm áp dụng khi Tìm; ô chọn và chip áp dụng ngay**, mang theo chữ đang có trong form (như thực đơn block6 bước 15). Đổi kiểu tìm phải bấm Tìm vì đổi sang toàn văn / gần đúng cần từ khoá.
+- **Mọi lần áp dụng điều kiện mới đều về trang 1, giữ cách hiển thị**; chuyển trang giữ nguyên điều kiện (plan mục 6.3).
+- **Không gửi tham số không thuộc chế độ**: URL API trên Network dễ đọc khi demo; API vẫn bỏ qua nếu có.
+
+**Đã kiểm tra** (Chrome headless, **22/22 đạt**):
+- Mặc định 12 món id 1–12, "1200 món", phân trang 1 2 … 100; mọi request có `pageSize=12`.
+- Gõ từ khoá chưa Tìm → URL không đổi; Tìm → `?q=phở`, "54 món khớp điều kiện cho “phở”"; trang 2 giữ `q`; Back → trang 1.
+- Đổi sắp xếp ở trang 2 → `?q=phở&sort=gia-tang`, bỏ `page`, giá tăng dần.
+- Chip Lẩu → `?mode=advanced&tag=9`, 61 món, chip có `aria-current` ("Combo 100% bò" có trong kết quả dù tên không có chữ "lẩu"); Trạng thái "Tạm hết" áp dụng ngay → mọi món tạm hết; Giá từ 0 đến 0 + Tìm → 4 món.
+- Toàn văn + từ khoá trống → "Nhập từ khoá để tìm.", không gọi API, URL không đổi; "nước dùng xương" → có điểm phù hợp, ô sắp xếp khoá. Gần đúng "Bò lúc lắt" → "Bò lúc lắc" đầu tiên; "pho bo tai" → 0 món + gợi ý gõ có dấu.
+- `?mode=advanced&minPrice=abc&available=yes` → lỗi cạnh 2 ô + "Điều kiện tìm không hợp lệ"; "Xoá bộ lọc" → `/dishes`. Mở thẳng `?mode=advanced&tag=9&page=2` → "Món 13–24 trong 61 món", ô Tag chọn Lẩu; vào chi tiết rồi "← Thực đơn" → về đúng URL đó. `?page=101` → link về trang 100.
+- 375px không cuộn ngang; không lỗi console; `vite build` thành công.
+
+**Lỗi trong kịch bản kiểm tra (không phải lỗi app):** (1) chờ "URL đã đổi" rồi đọc danh sách ngay → đọc nhầm danh sách cũ vì React chưa render lại (6 mục báo sai); đổi sang chờ nội dung mong đợi. (2) Ghi cứng "53 món" theo seed cũ — seed sau bước 8 có 54 món chứa "phở"; đổi sang lấy `total` từ API.
