@@ -301,3 +301,26 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - Cuộn vô hạn (Lẩu): tự nối tới "Đã hiện hết 61 món", đúng 61 id; mỗi trang chỉ gửi một lần. Màn hình cao 4000px → tự tải tiếp cho tới khi sentinel ra khỏi vùng nhìn. Có nút Tải thêm dự phòng. Vào trang chi tiết rồi cuộn → không còn request danh sách (observer đã ngắt).
 - **Cuộn hết 1.200 món: đủ id 1–1200, không trùng, không mất (71s).**
 - Chạy lại trên bản production: bước 9 **17/17**, bước 10 **22/22**. Seed lại sau khi test.
+
+## Bước 14 — Nghiệm thu giai đoạn I (mốc "đạt tiêu chí block7")
+Chạy trên dữ liệu seed đầy đủ (1.200 món), API :3000, SPA bản production (`vite build` + `vite preview` :5173).
+
+| Bảng nghiệm thu (plan mục 8) | Kết quả | Bằng chứng |
+| :--- | :--- | :--- |
+| Chọn trang, Tải thêm, cuộn tiếp: ba kiểu UI hoạt động, không mất / lặp món | **Đạt** | Số trang: id 1–12, 13–24, trang cuối 1189–1200 (bước 10); admin 1200 → 1181, trang 60 → id 1 (bước 9). Tải thêm: 12 → 24 → 36 → 48 đúng id, bấm 3 lần chỉ 1 request (bước 11). Cuộn hết **1.200 món đủ id 1–1200, không trùng** (bước 12). API: gom 12 trang × 100 đủ 1.200 id không trùng (`check-api.sh C`) |
+| Đổi filter hoặc sort: đúng điều kiện, thứ tự, phạm vi | **Đạt** | Sort qua mọi trang: giá không giảm, cùng giá thì id tăng (C); Lẩu 61 món có id > 12 (ngoài trang đầu); `available=false`, `minPrice=0&maxPrice=0` (4 món), Hải sản + giá + trạng thái: mọi món thoả, total = số món gom qua các trang (D); đổi sort trên UI về trang 1, giá tăng dần (bước 10) |
+| Chuyển trang sau khi search: giữ điều kiện, không trộn | **Đạt** | `?q=phở&page=2`, `?q=lẩu&page=2` giữ từ khoá (bước 9, 10); đổi điều kiện khi request cũ còn chậm 2,5s → chỉ có kết quả mới (bước 13) |
+| Xoá điều kiện, Reload, mở lại link | **Đạt** | "Xoá bộ lọc" → `/dishes`; mở thẳng 8 URL sâu (chi tiết, fuzzy + scroll, admin trang 3, form sửa, xoá đầu bếp, xoá nguyên liệu, route lạ, id không có) đều đúng trang; Tải thêm mở lại link → tải lại từ đầu, giữ điều kiện |
+| Search 4 chế độ: đúng quy tắc so khớp | **Đạt** | `check-api.sh D` 43/43 (escape `% _ \`, basic = advanced khi chỉ có q, fulltext đủ từ không liền nhau, fuzzy ngưỡng 0.3, không dấu → 0); `scripts/run-sql.js prisma/sql/search-examples.sql`: 14/14 kết quả khớp "Kỳ vọng" |
+| Tag: món / đầu bếp nhiều tag, thêm tag trong form | **Đạt** | `check-api.sh E` 39/39; thêm đầu bếp với tag mới tạo ngay trong form (bước 14), form món (bước 4) |
+| Chức năng cũ không hồi quy | **Đạt** | `check-api.sh A B` 94/94; 500 khi mất DB (75/75 với `API_BROKEN`); xoá đầu bếp còn món + chuyển món, nguyên liệu đang dùng bị chặn xoá, thêm nhanh nguyên liệu (trùng tên báo lỗi), sửa/xoá quay về đúng trang, lỗi chung khi API bị chặn (bước 14) |
+
+**Kịch bản bước 14** (hồi quy luồng block6 trên dữ liệu đầy đủ, **19/19 đạt**): mở thẳng 8 URL sâu; thêm đầu bếp kèm tag mới tạo trong form rồi xoá; tạo đầu bếp có món, trang xoá liệt kê món + ô chọn người nhận, chuyển sang đầu bếp #2 rồi xoá; "Thịt bò" đang dùng → không có nút Xoá; "Nấm hương" 0 món; form món 60 đầu bếp / 250 nguyên liệu, tick Lẩu → đầu bếp chuyên Lẩu lên đầu; thêm nhanh "tỏi" → lỗi trùng; chặn API → "Không tải được dữ liệu" ở cả Số trang và Tải thêm; không lỗi JavaScript.
+
+**Kịch bản các bước trước, chạy lại trên bản production:** bước 9 17/17, bước 10 22/22, bước 11–13 16/16. Hai kịch bản của bước 4 viết cho seed nhỏ (20 món, 7 đầu bếp) không còn chạy được vì dữ liệu đổi; các luồng đó đã được kịch bản bước 14 phủ lại trên dữ liệu đầy đủ.
+
+**Checklist mã nguồn:** không có `$queryRawUnsafe`; không chèn HTML thô (`innerHTML`, `dangerouslySetInnerHTML`); biến `VITE_` duy nhất là `VITE_API_URL` (công khai); không `Math.random` trong seed/app; không `rejectUnauthorized: false`; `DATABASE_URL` không có `sslmode` → `pg` dùng CA, xác minh chứng chỉ (`rejectUnauthorized` mặc định true); không `Boolean(...)` trên query; trang không gọi `fetch` trực tiếp (chỉ qua `api/client.js`); không `.env` nào bị git theo dõi; không `console.log` sót trong app.
+
+**API:** `check-api.sh` **210/210**; `API_BROKEN` **75/75**. Seed lại sau khi test (hash dữ liệu không đổi).
+
+**Còn lại (giai đoạn II):** responsive + truy cập cho phần mới và hiệu ứng cơ bản (bước 15), bằng chứng nộp (16), README + tài liệu trình bày (17), index tùy chọn (18). Ghi chú cho bước 15: bảng admin món ở 821–900px rộng hơn khung ~85px (cuộn trong khung).
