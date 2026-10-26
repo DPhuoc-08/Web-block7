@@ -1,0 +1,25 @@
+# Thư viện cài bằng `npm install` (tạo lại từ package-lock.json) — áp dụng cho cả api/ và web/
+node_modules/
+
+# Prisma Client sinh ra từ schema, tạo lại bằng `npx prisma generate` (tự chạy sau `npm install`)
+generated/
+
+# Bản build của SPA (`npm run build` trong web/)
+dist/
+
+# Biến môi trường: api/.env chứa chuỗi kết nối database — không bao giờ commit. Chỉ commit file mẫu.
+.env
+.env.*
+!.env.example
+
+# Log
+*.log
+npm-debug.log*
+
+# Hệ điều hành / editor
+.DS_Store
+.vscode/
+.idea/
+
+# File nén để nộp/chia sẻ, không đưa lên repo
+*.zip
