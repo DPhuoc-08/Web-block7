@@ -1,38 +1,75 @@
-import { Link, useSearchParams } from "react-router";
+import { useEffect, useRef } from "react";
+import { Link, useLocation, useSearchParams } from "react-router";
 import AdminSearch from "../../../components/AdminSearch.jsx";
 import { listDishes } from "../../../api/dishes.js";
 import { useLoad } from "../../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
-import { Loading, LoadError } from "../../../components/StatusView.jsx";
+import { Loading, LoadError, InvalidQuery } from "../../../components/StatusView.jsx";
+import Pagination from "../../../components/Pagination.jsx";
+import { isBusiness, toQuery } from "../../../api/client.js";
 import AdminNav from "../../../components/AdminNav.jsx";
 import { useJustSaved } from "../../../hooks/useJustSaved.js";
 import { formatPrice, tagNames } from "../../../format.js";
 import DishImage from "../../../components/DishImage.jsx";
 
-// Danh sách quản trị món (/admin/dishes). Tự tải mỗi lần mở → sau khi thêm/sửa/xoá quay lại luôn thấy dữ liệu mới.
+const PAGE_SIZE = 20;
+
+// Danh sách quản trị món (/admin/dishes?q=&page=). Phân trang tại server: mỗi lần chỉ nhận 20 món của trang đang xem
+// (1.200 món tải một lần mất ~14s ở bước 5). Món mới nhất lên đầu → món vừa thêm luôn ở trang 1 và được tô.
+// q, page nằm trên URL của trang: Reload, copy link, Back/Forward mở lại đúng trang và từ khoá.
 export default function AdminDishListPage() {
   useDocumentTitle("Quản trị món ăn");
+  const { pathname, search } = useLocation();
   const [searchParams] = useSearchParams();
   const q = searchParams.get("q")?.trim() ?? "";
+  // page gửi nguyên văn cho API: API là nơi kiểm tra (page=0, page=abc → VALIDATION_FAILED → InvalidQuery).
+  const rawPage = searchParams.get("page") ?? "";
   // Admin tìm cả tên món và tên tag (như admin block5 tìm cả loại); trang người dùng chỉ tìm theo tên.
-  const { status, data: dishes, reload } = useLoad((signal) => listDishes({ q, searchIn: q ? "name,tag" : "" }, { signal }), [q]);
+  const { status, data, error, reload } = useLoad(
+    (signal) => listDishes({ q, searchIn: q ? "name,tag" : "", sort: "moi-nhat", page: rawPage, pageSize: PAGE_SIZE }, { signal }),
+    [q, rawPage],
+  );
   const { savedId, savedRowRef } = useJustSaved();
+  const dishes = data?.items ?? [];
+  const totalPages = data ? Math.ceil(data.total / data.pageSize) : 0;
+  // Link tới trang n: giữ từ khoá, bỏ thông báo ?msg= của lần lưu trước; trang 1 không ghi page cho URL gọn.
+  const hrefFor = (n) => `${pathname}${toQuery({ q, page: n > 1 ? n : "" })}`;
+  // Sửa/xoá xong quay về đúng URL danh sách này (giữ trang, từ khoá).
+  const backState = { backTo: pathname + search };
+
+  // Đổi trang → đưa đầu bảng vào màn hình (nút phân trang nằm cuối bảng). Lần mở đầu tiên không cuộn.
+  const topRef = useRef(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) return void (firstRender.current = false);
+    topRef.current?.scrollIntoView({ block: "start" });
+  }, [rawPage]);
+
+  const invalid = status === "error" && isBusiness(error, "VALIDATION_FAILED");
 
   return (
     <>
       <AdminNav current="dishes" />
-      <div className="toolbar">
+      <div className="toolbar" ref={topRef}>
         <h1>Món ăn</h1>
-        <Link className="btn btn-primary" to="/admin/dishes/new">
+        <Link className="btn btn-primary" to="/admin/dishes/new" state={backState}>
           + Thêm món
         </Link>
       </div>
 
-      <AdminSearch label="Tìm món" placeholder="Tìm theo tên món hoặc tag" count={status === "ok" ? dishes.length : null} />
+      <AdminSearch label="Tìm món" placeholder="Tìm theo tên món hoặc tag" count={status === "ok" ? data.total : null} />
 
       {status === "loading" && <Loading />}
-      {status === "error" && <LoadError onRetry={reload} />}
-      {status === "ok" && dishes.length === 0 && <div className="panel empty">{q ? "Không có món nào khớp từ khoá." : "Chưa có món nào."}</div>}
+      {invalid && <InvalidQuery fields={error.fields} resetTo={pathname} resetLabel="Về trang 1" />}
+      {status === "error" && !invalid && <LoadError onRetry={reload} />}
+      {status === "ok" && data.total === 0 && <div className="panel empty">{q ? "Không có món nào khớp từ khoá." : "Chưa có món nào."}</div>}
+      {/* Trang vượt phạm vi (sửa tay URL, hoặc vừa xoá món cuối của trang cuối): thành công nhưng items rỗng. */}
+      {status === "ok" && data.total > 0 && dishes.length === 0 && (
+        <div className="panel empty">
+          <strong>Trang {data.page} không có món nào.</strong>
+          <Link to={hrefFor(totalPages)}>Về trang cuối ({totalPages})</Link>
+        </div>
+      )}
       {status === "ok" && dishes.length > 0 && (
         <div className="panel table-wrap">
           <table>
@@ -62,7 +99,9 @@ export default function AdminDishListPage() {
                   </td>
                   {/* Tên món mở form sửa: admin ở lại khu Quản trị (trước đây dẫn ra trang người dùng). */}
                   <td className="title" data-label="Tên">
-                    <Link to={`/admin/dishes/${d.id}/edit`}>{d.name}</Link>
+                    <Link to={`/admin/dishes/${d.id}/edit`} state={backState}>
+                      {d.name}
+                    </Link>
                   </td>
                   <td data-label="Giá">{formatPrice(d.price)}</td>
                   <td data-label="Tag">{tagNames(d.tags)}</td>
@@ -72,10 +111,10 @@ export default function AdminDishListPage() {
                   </td>
                   {/* Hai link chỉ mở trang (form sửa, trang xác nhận xoá); không link nào tự ghi dữ liệu. */}
                   <td className="actions">
-                    <Link className="btn btn-sm" to={`/admin/dishes/${d.id}/edit`}>
+                    <Link className="btn btn-sm" to={`/admin/dishes/${d.id}/edit`} state={backState}>
                       Sửa
                     </Link>
-                    <Link className="btn btn-sm danger-text" to={`/admin/dishes/${d.id}/delete`}>
+                    <Link className="btn btn-sm danger-text" to={`/admin/dishes/${d.id}/delete`} state={backState}>
                       Xoá
                     </Link>
                   </td>
@@ -84,6 +123,14 @@ export default function AdminDishListPage() {
             </tbody>
           </table>
         </div>
+      )}
+      {status === "ok" && dishes.length > 0 && (
+        <>
+          <p className="muted page-summary">
+            Món {(data.page - 1) * data.pageSize + 1}–{(data.page - 1) * data.pageSize + dishes.length} trong {data.total} món
+          </p>
+          <Pagination page={data.page} totalPages={totalPages} hrefFor={hrefFor} label="Phân trang món ăn" />
+        </>
       )}
     </>
   );

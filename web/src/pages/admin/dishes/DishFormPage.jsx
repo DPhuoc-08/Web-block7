@@ -15,6 +15,7 @@ import QuickAdd from "../../../components/QuickAdd.jsx";
 import TagPicker from "../../../components/TagPicker.jsx";
 import LeaveConfirm from "../../../components/LeaveConfirm.jsx";
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges.js";
+import { useBackTo, withFlash } from "../../../hooks/useBackTo.js";
 import { plain, tagNames } from "../../../format.js";
 
 const INGREDIENT_FIELDS = [
@@ -111,6 +112,8 @@ const sortedIds = (ids) => [...ids].sort((a, b) => a - b);
 function DishForm({ id, dish, tags, chefs, ingredients }) {
   const isEdit = id !== undefined;
   const navigate = useNavigate();
+  // Danh sách admin đã mở (giữ ?page=, ?q=) — Huỷ, "← Danh sách món" và lưu xong đều quay về đây.
+  const listUrl = useBackTo("/admin/dishes");
   const [initial] = useState(() => initialValues(dish));
   const [values, setValues] = useState(initial);
   // Đã sửa gì chưa: so với giá trị lúc mở form (thứ tự tick nguyên liệu, tag không tính là thay đổi).
@@ -187,7 +190,8 @@ function DishForm({ id, dish, tags, chefs, ingredients }) {
       // ra trang người dùng); danh sách tự tải lại từ API. Không tải lại document. ?msg= → dòng thông báo (bảng FLASH),
       // &id= → danh sách tô dòng vừa lưu.
       allowLeave(); // đã lưu → không hỏi "rời trang khi chưa lưu"
-      navigate(`/admin/dishes?msg=${isEdit ? "dish-updated" : "dish-created"}&id=${saved.id}`);
+      // Thêm mới → trang 1 của danh sách (món mới nhất lên đầu); sửa → đúng trang đang làm việc.
+      navigate(withFlash(isEdit ? listUrl : "/admin/dishes", { msg: isEdit ? "dish-updated" : "dish-created", id: saved.id }));
     } catch (err) {
       if (isBusiness(err, "VALIDATION_FAILED")) {
         // Lỗi theo trường từ API: hiện cạnh từng ô theo khoá của fields; giá trị đã nhập vẫn giữ trong state.
@@ -206,7 +210,7 @@ function DishForm({ id, dish, tags, chefs, ingredients }) {
 
   return (
     <>
-      <Link className="back" to="/admin/dishes">
+      <Link className="back" to={listUrl}>
         ← Danh sách món
       </Link>
 
@@ -367,7 +371,7 @@ function DishForm({ id, dish, tags, chefs, ingredients }) {
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "Đang lưu…" : isEdit ? "Lưu" : "Thêm"}
             </button>
-            <Link className="btn" to="/admin/dishes">
+            <Link className="btn" to={listUrl}>
               Huỷ
             </Link>
           </div>

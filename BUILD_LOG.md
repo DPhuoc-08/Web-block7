@@ -230,3 +230,28 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - Fuzzy (số đo thực tế): "Bò lúc lắt" → "Bò lúc lắc" 0.667 đứng đầu; "Gỏi cuống tôm thịt" → "Gỏi cuốn tôm thịt" 0.842; "Phở bò tá" → "Phở bò tái" 0.75; "Hủ tíu Nam Vang" → "Hủ tiếu Nam Vang" 0.65; "pho bo tai" → 0 món; "unrelatedxyz" → 0. Mọi điểm ≥ 0.3, total khớp số món gom qua các trang.
 - `node scripts/run-sql.js prisma/sql/search-examples.sql`: **14/14 kết quả khớp dòng "Kỳ vọng"** (vd. `Trà_` → 700; Lẩu + Miền Nam + 200–300k + còn phục vụ → 135, 352, 675, 1107, 1169; tên chứa "lẩu" 60 dòng nhưng tag Lẩu 61 vì "Combo 100% bò"; fuzzy ngưỡng 0.6 chỉ còn #9; total/trang = 60, {37,44,55}, {77,130,135}).
 - Thời gian một trang: fulltext ~0,41s, fuzzy ~0,56s.
+
+## Bước 9 — SPA: bảng admin món có phân trang
+**Đã làm:**
+- `components/Pagination.jsx` (mới): Trước · dải số rút gọn (`pageWindow`: trang đầu, trang cuối, trang hiện tại ±1, chỗ lược là "…") · Sau. Mỗi nút là **link tới URL có `?page=N`** (không phải nút gọi API) → copy link, tab mới, Back/Forward đều đúng. Trang hiện tại `aria-current="page"`; ≤ 600px chỉ còn Trước · "Trang 4/100" · Sau.
+- `AdminDishListPage`: gọi `GET /api/dishes?searchIn=name,tag&sort=moi-nhat&page=&pageSize=20`; `q`, `page` trên URL; dòng "Món 21–40 trong 1200 món"; trang vượt phạm vi → "Trang N không có món nào" + link về trang cuối; `VALIDATION_FAILED` (vd. `?page=0`) → `InvalidQuery` (liệt kê lỗi + "Về trang 1", không có "Thử lại" vì không phải lỗi máy chủ); đổi trang → cuộn đầu bảng vào màn hình.
+- `hooks/useBackTo.js` (mới): bảng admin truyền URL đang xem qua `state` của link Sửa / Xoá / Thêm; form và trang xoá quay về đúng URL đó (giữ `page`, `q`). `withFlash` thay `msg`/`id` cũ trong URL. Thêm mới vẫn về trang 1 (món mới nhất ở đầu, được tô).
+- `components/StatusView.jsx`: thêm `InvalidQuery`.
+- CSS: phân trang (nút ≥ 44px), cột Tên / Tag / Đầu bếp được xuống dòng ở > 820px.
+
+**Quyết định và lý do:**
+- **Gửi `page` nguyên văn cho API**, SPA không tự sửa: API là nơi kiểm tra cuối (như validate kết hợp của block6); URL sửa tay sai thì người dùng thấy rõ lỗi gì.
+- **Trang vượt phạm vi là thành công, không tự nhảy về trang cuối**: đúng hợp đồng API; có link để người dùng tự chọn.
+- **Sửa xong quay về trang đang làm việc** (plan mục 6.5): admin sửa món ở trang 3 không phải lật lại từ đầu.
+
+**Lỗi hiển thị phát hiện và sửa:** ở 1280px cột "Tình trạng" bị cắt — cột Tag ("Tráng miệng · Miền Bắc") dài hơn cột Loại cũ nên bảng rộng 1107px trong khung 1078px. Cho cột Tag, Đầu bếp, Tên xuống dòng → 1280px: 1078/1078, 1024px: 982/982. Ở 821–900px bảng vẫn rộng hơn khung khoảng 85px và cuộn ngang trong khung (như block6; trang không cuộn ngang); dưới 820px bảng chuyển thành thẻ.
+
+**Đã kiểm tra** (Chrome headless, **17/17 đạt**):
+- `/admin/dishes`: 20 dòng 1200 → 1181; "Món 1–20 trong 1200 món"; phân trang 1 2 … 60; request chỉ có `sort=moi-nhat&pageSize=20`.
+- Bấm trang 2 → `?page=2`, dòng 1180 → 1161, nút 2 có `aria-current`; Back → trang 1.
+- `?page=60` → id 20 → 1, nút Sau bị khoá; `?page=61` → thông báo + link `?page=60`; `?page=0` → "Số trang phải là số nguyên dương.", không có "Thử lại".
+- Tìm "lẩu" → 61 kết quả (tên + tag), 4 trang; trang 2 giữ `q`; mở thẳng `?q=lẩu&page=2` → đúng trang, ô tìm có sẵn từ khoá; tìm từ khoá mới ở trang 2 → về trang 1.
+- Sửa món #1155 ở trang 3 → về `?page=3&msg=dish-updated`, dòng được tô; thêm món → trang 1, #1201 đứng đầu và được tô; xoá #1201 → về danh sách, có thông báo.
+- 375px: dải số ẩn, "Trang 2/60", không cuộn ngang. Không lỗi console. `vite build` thành công. Seed lại sau khi test.
+
+**Trạng thái:** thực đơn `/dishes` vẫn đọc `data` là mảng và gửi tham số cũ → làm ở bước 10.

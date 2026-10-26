@@ -6,12 +6,15 @@ import { useLoad } from "../../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
 import { Loading, LoadError, NotFoundMessage } from "../../../components/StatusView.jsx";
 import { generalMessage } from "../../../components/FormBits.jsx";
+import { useBackTo, withFlash } from "../../../hooks/useBackTo.js";
 
 // Trang xác nhận xoá (/admin/dishes/:id/delete). Mở trang chỉ GET món; CHỈ nút "Xoá" gửi DELETE.
 export default function DishDeletePage() {
   const { id } = useParams();
   useDocumentTitle("Xoá món");
   const navigate = useNavigate();
+  // Về đúng trang danh sách admin đã mở (giữ ?page=, ?q=).
+  const listUrl = useBackTo("/admin/dishes");
   const { status, data: dish, reload } = useLoad((signal) => getDish(id, { signal }), [id]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -30,8 +33,9 @@ export default function DishDeletePage() {
     setError(null);
     try {
       await deleteDish(id);
-      // Xoá xong → về danh sách (trang chi tiết không còn); danh sách tự tải lại từ API.
-      navigate("/admin/dishes?msg=dish-deleted");
+      // Xoá xong → về đúng trang danh sách đã mở; danh sách tự tải lại từ API. Nếu vừa xoá món cuối của trang cuối,
+      // trang đó thành vượt phạm vi → bảng admin hiện link "Về trang cuối".
+      navigate(withFlash(listUrl, { msg: "dish-deleted" }));
     } catch (err) {
       setError(isBusiness(err, "NOT_FOUND") ? "Món này đã bị xoá trước đó." : generalMessage(err));
       busy.current = false;
@@ -41,7 +45,7 @@ export default function DishDeletePage() {
 
   return (
     <>
-      <Link className="back" to="/admin/dishes">
+      <Link className="back" to={listUrl}>
         ← Danh sách món
       </Link>
       <div className="panel confirm">
@@ -56,7 +60,7 @@ export default function DishDeletePage() {
           <button type="button" className="btn btn-danger" onClick={onDelete} disabled={submitting}>
             {submitting ? "Đang xoá…" : "Xoá"}
           </button>
-          <Link className="btn" to="/admin/dishes">
+          <Link className="btn" to={listUrl}>
             Huỷ
           </Link>
         </div>

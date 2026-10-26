@@ -38,3 +38,24 @@ export function NotFoundMessage({ title = "Không tìm thấy trang", text = "Tr
     </div>
   );
 }
+
+// Điều kiện trên URL không hợp lệ (API trả VALIDATION_FAILED, vd. ?page=0 hay ?minPrice=abc do sửa tay URL):
+// không phải lỗi máy chủ nên không có "Thử lại" — chỉ ra điều kiện sai và link về danh sách mặc định.
+export function InvalidQuery({ fields = {}, resetTo, resetLabel = "Xoá điều kiện" }) {
+  const messages = Object.values(fields);
+  return (
+    <div className="panel empty" role="alert">
+      <strong>Điều kiện tìm không hợp lệ</strong>
+      {messages.length > 0 && (
+        <ul className="invalid-list">
+          {messages.map((m) => (
+            <li key={m}>{m}</li>
+          ))}
+        </ul>
+      )}
+      <Link className="btn" to={resetTo}>
+        {resetLabel}
+      </Link>
+    </div>
+  );
+}

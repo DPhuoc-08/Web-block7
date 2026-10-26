@@ -344,3 +344,28 @@ a.tag-chip { min-height: 32px; padding: 0 12px; font-size: .85rem; }
 a.tag-chip:hover { border-color: var(--primary); color: var(--primary); text-decoration: none; }
 /* Món chưa có ảnh: khung ghi loại món. */
 .dish-thumb.no-photo { background: var(--primary-soft); color: var(--primary); font-weight: 600; font-size: .8rem; }
+/* Phân trang dạng số trang: Trước · 1 … 4 5 6 … 100 · Sau. Nút tối thiểu 44px để dễ chạm. */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 20px 0 8px; }
+.page-list { display: flex; align-items: center; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.page-num, .page-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font-weight: 600; font-size: .95rem;
+}
+.page-num:hover, .page-btn:hover { border-color: var(--text); color: var(--text); text-decoration: none; }
+.page-num[aria-current="page"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.page-btn[aria-disabled="true"] { color: var(--muted); background: var(--surface-2); border-color: var(--border); cursor: default; }
+.page-gap { min-width: 24px; text-align: center; color: var(--muted); }
+.page-status { display: none; font-weight: 600; color: var(--muted); }
+.page-summary { text-align: center; margin: 16px 0 0; font-size: .9rem; }
+.invalid-list { text-align: left; display: inline-block; margin: 8px 0 16px; color: var(--danger); }
+/* Điện thoại: bỏ dải số, chỉ còn Trước · "Trang 4/100" · Sau trên một hàng. */
+@media (max-width: 600px) {
+  .page-list { display: none; }
+  .page-status { display: inline; }
+  .pagination { flex-wrap: nowrap; justify-content: space-between; }
+}
+/* Bảng admin món: cột Tên, Tag ("Tráng miệng · Miền Bắc") và Đầu bếp được xuống dòng → bảng vừa khung 1120px, không cuộn ngang. */
+@media (min-width: 821px) {
+  td[data-label="Tag"], td[data-label="Đầu bếp"] { white-space: normal; min-width: 120px; }
+  td.title { white-space: normal; min-width: 180px; }
+}
