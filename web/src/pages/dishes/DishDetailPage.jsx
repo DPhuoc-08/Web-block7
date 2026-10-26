@@ -5,6 +5,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle.js";
 import { Loading, LoadError, NotFoundMessage } from "../../components/StatusView.jsx";
 import { formatPrice, tagNames } from "../../format.js";
 import DishImage from "../../components/DishImage.jsx";
+import TagList from "../../components/TagList.jsx";
 
 // Chi tiết món (/dishes/:id). Id đọc từ URL → mở tab mới, gửi link, Reload hay Back đều ra đúng món.
 // Trang không nhận object món từ danh sách mà tự gọi GET /api/dishes/:id.
@@ -39,7 +40,8 @@ export default function DishDetailPage() {
         </figure>
 
         <div className="detail-info">
-          <span className="tag">{tagNames(dish.tags)}</span>
+          {/* Chip tag là link lọc thực đơn theo tag đó. */}
+          <TagList tags={dish.tags} linked />
           <h1>{dish.name}</h1>
           <div className="price-line">
             <span className="detail-price">{formatPrice(dish.price)}</span>
@@ -50,8 +52,6 @@ export default function DishDetailPage() {
           <dl className="facts">
             <dt>Mã món</dt>
             <dd>#{dish.id}</dd>
-            <dt>Tag</dt>
-            <dd>{tagNames(dish.tags)}</dd>
             <dt>Đầu bếp</dt>
             <dd>
               {dish.chef.name}

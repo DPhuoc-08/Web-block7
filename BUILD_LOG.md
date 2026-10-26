@@ -162,3 +162,17 @@ Plan: `../block7-plan.md`. Quy ước làm việc: `../CLAUDE.md`.
 - `check-api.sh`: **154/154 đạt** (sau khi sửa 2 kỳ vọng phụ thuộc seed nhỏ). Seed lại sau khi test.
 
 **Mốc "trước phân trang"** (để so sánh ở bước 7–10): `GET /api/dishes` trả cả 1.200 món, **495KB**, 0,35–1,1s. Trong Chrome headless, `/dishes` cần **~34s** mới hiện đủ 1.200 dòng, `/admin/dishes` ~14s; form món (60 đầu bếp, 250 nguyên liệu) ~5s. Không lỗi console. Đây là lý do thực tế cho phân trang tại server (plan mục 0).
+
+## Bước 6 — Giao diện cho phần tag, ảnh với 1.200 món
+**Đã làm:**
+- `components/TagList.jsx` (mới): tag dạng chip nhỏ; tag loại món (`mainId`) có màu nhấn. Trong thẻ món chỉ là `<span>` (cả thẻ đã là link); ở trang chi tiết mỗi chip là link `/dishes?tag=<id>`.
+- Thẻ món (`DishRow`): chip tag thay cho chuỗi "Món nước · Miền Bắc". Món không có ảnh → khung ghi tên loại món (tag đầu tiên) thay cho "Chưa có ảnh".
+- Trang chi tiết: chip tag (link) ở đầu, bỏ dòng "Tag" trùng trong bảng thông tin.
+- CSS: `.tag-list`, `.tag-chip` (chip là link cao 32px để dễ chạm), khung "chưa có ảnh" của thẻ món tô màu nhấn nhạt.
+
+**Quyết định và lý do:**
+- **Truyền `mainId` thay vì luôn tô tag đầu danh sách:** khi thực đơn nhóm theo loại, tag loại bị ẩn trên từng dòng; nếu tô tag đầu thì "Miền Bắc" sẽ bị tô như loại món.
+- **Bảng admin giữ dạng chữ "A · B"** (không đổi sang chip): bảng cần gọn, chip làm dòng cao hơn.
+- Phần còn lại của mục 7.2 (khung tìm, công tắc kiểu hiển thị, phân trang, Tải thêm, điểm phù hợp) làm cùng các bước 9–12 của chức năng đó.
+
+**Đã kiểm tra** (Chrome headless): ở 1280 / 820 / 375px, `/dishes?tag=9` (61 món) và `/dishes/22` không cuộn ngang; chip ở trang chi tiết đều là link `/dishes?tag=<id>`; nhóm Lẩu không có chip nào bị tô nhầm màu loại món; không lỗi console; `vite build` thành công. Một kiểm tra báo chưa đạt do kỳ vọng sai: khung "chưa có ảnh" trong `?tag=9` ghi "Lẩu" cho 60 món và "Món nướng" cho "Combo 100% bò" — món này có tag loại đầu tiên là Món nướng, app hiển thị đúng.
