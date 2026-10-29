@@ -40,8 +40,3 @@ export const hasErrors = (errors) => Object.keys(errors).length > 0;
 
 // Query string (?q=...): chỉ nhận khi là chuỗi. `?q=a&q=b` cho ra mảng → coi như không có (tránh lỗi 500 ở Prisma).
 export const queryStr = (v) => (typeof v === "string" ? v.trim() : "");
-
-// Điều kiện tìm kiếm: từ khoá khớp (không phân biệt hoa thường) ở BẤT KỲ cột nào trong `fields`.
-// Không có từ khoá → {} (lấy tất cả). Prisma gửi `q` dạng tham số, không nối vào SQL.
-export const searchWhere = (q, fields) =>
-  q ? { OR: fields.map((field) => ({ [field]: { contains: q, mode: "insensitive" } })) } : {};

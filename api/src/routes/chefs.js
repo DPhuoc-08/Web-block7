@@ -4,12 +4,13 @@
 //   - xoá đầu bếp còn món: phải chọn người nhận (?transferTo=<id>), chuyển món + xoá trong một transaction
 // Block7: chuyên môn là danh sách tag (chef_tags), ghi bằng `tagIds`, đọc ra `tags: [{id, name}]`.
 import { Router } from "express";
-import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken } from "../db.js";
+import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken, findPage } from "../db.js";
 import { ok, notFound, validationFailed, inUse } from "../http/respond.js";
 import { jsonBody } from "../http/json-body.js";
 import { parseId } from "../validators/id.js";
 import { hasErrors, queryStr } from "../validators/common.js";
 import { validateChef } from "../validators/chef.js";
+import { parseAdminListQuery, searchWhere, containsIn } from "../validators/list-query.js";
 import { allTagsExist, TAG_MISSING } from "../validators/tag.js";
 import { TAG_SELECT, flatTags } from "../http/shapes.js";
 
@@ -22,20 +23,16 @@ const toChef = ({ _count, tags, ...chef }) => ({ ...chef, tags: flatTags(tags), 
 const dishesOf = (chefId) =>
   prisma.dish.findMany({ where: { chefId }, select: { id: true, name: true }, orderBy: { name: "asc" } });
 
-// Danh sách, mỗi đầu bếp kèm chuyên môn và số món đang phụ trách (cột "Phụ trách N món" ở trang quản trị).
-// ?q= (tìm kiếm admin, giữ từ block5): khớp tên HOẶC tên một chuyên môn, không phân biệt hoa thường.
+// Danh sách có phân trang, mỗi đầu bếp kèm chuyên môn và số món đang phụ trách (cột "Phụ trách N món" ở trang quản trị).
+//   ?q= (tìm kiếm admin, giữ từ block5): khớp tên HOẶC tên một chuyên môn, không phân biệt hoa thường
+//   &page= &pageSize= (mặc định 1, 20) hoặc ?all=true (form món, trang xoá đầu bếp cần đủ danh sách để chọn)
+// Trả data: { items, total, page, pageSize } như GET /api/dishes.
 router.get("/", async (req, res) => {
-  const q = queryStr(req.query.q);
-  const where = q
-    ? {
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { tags: { some: { tag: { name: { contains: q, mode: "insensitive" } } } } },
-        ],
-      }
-    : {};
-  const chefs = await prisma.chef.findMany({ where, include: withCount, orderBy: { id: "asc" } });
-  ok(res, chefs.map(toChef));
+  const query = parseAdminListQuery(req.query, "đầu bếp");
+  if (hasErrors(query.errors)) return validationFailed(res, query.errors);
+  const where = searchWhere(query.q, [containsIn("name"), (s) => ({ tags: { some: { tag: containsIn("name")(s) } } })]);
+  const { rows, ...meta } = await findPage(prisma.chef, { where, include: withCount }, query);
+  ok(res, { items: rows.map(toChef), ...meta });
 });
 
 // Chi tiết kèm các món đang phụ trách: trang xác nhận xoá dùng để liệt kê món cần chuyển.

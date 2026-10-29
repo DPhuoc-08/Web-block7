@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { getDish, createDish, updateDish } from "../../../api/dishes.js";
-import { listChefs } from "../../../api/chefs.js";
-import { listIngredients, createIngredient } from "../../../api/ingredients.js";
+import { listAllChefs } from "../../../api/chefs.js";
+import { listAllIngredients, createIngredient } from "../../../api/ingredients.js";
 import { listTags } from "../../../api/tags.js";
 import { isBusiness } from "../../../api/client.js";
 import { useLoad } from "../../../hooks/useLoad.js";
@@ -36,8 +36,8 @@ export default function DishFormPage() {
     (signal) =>
       Promise.all([
         listTags({ signal }),
-        listChefs({}, { signal }),
-        listIngredients({}, { signal }),
+        listAllChefs({ signal }),
+        listAllIngredients({ signal }),
         isEdit ? getDish(id, { signal }) : null,
       ]),
     [id],

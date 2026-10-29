@@ -12,7 +12,7 @@ export default function AdminIngredientListPage() {
   useDocumentTitle("Quản trị nguyên liệu");
   const [searchParams] = useSearchParams();
   const q = searchParams.get("q")?.trim() ?? "";
-  const { status, data: ingredients, reload } = useLoad((signal) => listIngredients({ q }, { signal }), [q]);
+  const { status, data: ingredients, reload } = useLoad((signal) => listIngredients({ q, all: true }, { signal }).then((d) => d.items), [q]);
   const { savedId, savedRowRef } = useJustSaved();
 
   return (

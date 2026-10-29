@@ -3,11 +3,12 @@
 //   - tên nguyên liệu không được trùng
 //   - nguyên liệu đang được món nào dùng thì KHÔNG cho xoá → IN_USE kèm danh sách món
 import { Router } from "express";
-import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken } from "../db.js";
+import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken, findPage } from "../db.js";
 import { ok, notFound, validationFailed, inUse } from "../http/respond.js";
 import { jsonBody } from "../http/json-body.js";
 import { parseId } from "../validators/id.js";
-import { hasErrors, queryStr, searchWhere } from "../validators/common.js";
+import { hasErrors } from "../validators/common.js";
+import { parseAdminListQuery, searchWhere, containsIn } from "../validators/list-query.js";
 import { validateIngredient } from "../validators/ingredient.js";
 
 const router = Router();
@@ -23,15 +24,16 @@ const dishesUsing = (ingredientId) =>
     orderBy: { name: "asc" },
   });
 
-// Danh sách, mỗi nguyên liệu kèm số món đang dùng (cột "Dùng trong N món" ở trang quản trị).
-// ?q= (tìm kiếm admin, giữ từ block5): khớp tên HOẶC đơn vị, không phân biệt hoa thường.
+// Danh sách có phân trang, mỗi nguyên liệu kèm số món đang dùng (cột "Dùng trong N món" ở trang quản trị).
+//   ?q= (tìm kiếm admin, giữ từ block5): khớp tên HOẶC đơn vị, không phân biệt hoa thường
+//   &page= &pageSize= (mặc định 1, 20) hoặc ?all=true (form món cần đủ 250 nguyên liệu để chọn)
+// Trả data: { items, total, page, pageSize } như GET /api/dishes.
 router.get("/", async (req, res) => {
-  const ingredients = await prisma.ingredient.findMany({
-    where: searchWhere(queryStr(req.query.q), ["name", "unit"]),
-    include: withCount,
-    orderBy: { id: "asc" },
-  });
-  ok(res, ingredients.map(toIngredient));
+  const query = parseAdminListQuery(req.query, "nguyên liệu");
+  if (hasErrors(query.errors)) return validationFailed(res, query.errors);
+  const where = searchWhere(query.q, [containsIn("name"), containsIn("unit")]);
+  const { rows, ...meta } = await findPage(prisma.ingredient, { where, include: withCount }, query);
+  ok(res, { items: rows.map(toIngredient), ...meta });
 });
 
 // Chi tiết kèm các món đang dùng: trang xác nhận xoá dùng để liệt kê món cần bỏ nguyên liệu này trước.

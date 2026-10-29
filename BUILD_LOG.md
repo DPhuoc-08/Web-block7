@@ -467,3 +467,62 @@ Chạy trên dữ liệu seed đầy đủ (1.200 món), API :3000, SPA bản pr
 - `check-api.sh` **211/211** (thêm 1 kiểm tra ở D). README, `hotrotrinhbay.html` cập nhật số mới.
 - Kịch bản trình duyệt bước 10 **22/22** (có toàn văn / gần đúng).
 - Seed lại, hash `798423e712f0ffdc`.
+
+## Bước 19 — API: phân trang `/api/chefs`, `/api/ingredients` (plan mục 12)
+**Bối cảnh (29/10/2026):** nhóm thấy bảng admin món xếp 1200 → 1 nên nhìn như bị ngược (mục 10.9 cũ chọn `id DESC`). Admin đầu bếp và nguyên liệu thì tải toàn bộ (60 / 250 dòng) mỗi lần mở trang. Nhóm chốt:
+- cả 3 bảng admin xếp `id ASC`;
+- thêm mới xong thì về trang 1 + thông báo;
+- hai API luôn trả `{ items, total, page, pageSize }`, nơi cần đủ danh sách gọi `?all=true`;
+- `all` sai → `VALIDATION_FAILED`;
+- giữ `sort=moi-nhat` trong API;
+- sửa lỗi wildcard ở ô tìm admin.
+
+Phương án bỏ:
+- sau khi thêm thì chuyển tới trang cuối;
+- chỉ phân trang khi có `page` (response đổi dạng theo tham số).
+
+**Đã làm:**
+- `validators/list-query.js`:
+  - tách `parsePaging` (đọc `page`, `pageSize`, dùng chung cho 3 route; thực đơn mặc định 12, admin 20, tối đa 100);
+  - thêm `parseAdminListQuery` (`q` đọc như block6, mảng thì bỏ qua; `all` chỉ nhận `"true"`);
+  - chuyển `searchWhere` từ `common.js` về cạnh `escapeLike`, nay escape từ khoá; thêm `containsIn`.
+- `db.js` → `findPage(delegate, { where, include }, query)`:
+  - `count` + `findMany` (`orderBy id ASC`, `skip/take`) trong một transaction `RepeatableRead` như `/api/dishes`;
+  - `all` bỏ `skip/take` và trả `page: 1, pageSize: total`.
+- `routes/chefs.js`, `routes/ingredients.js`: `GET /` dùng hai hàm trên. Lọc theo `q` vẫn là tên/chuyên môn, tên/đơn vị như cũ.
+- SPA (sửa hết nơi đang dùng, để không commit code lỗi):
+  - `listAllChefs`, `listAllIngredients` (`?all=true` → `items`) cho form món và trang xoá đầu bếp;
+  - hai bảng admin tạm gọi `all: true` để giữ hành vi cũ, số trang làm ở bước 20.
+- `check-api.sh`: ca cũ đọc `.data.items` / `.data.total`; thêm **phần F** (40 kiểm tra) và hàm `collect_ids`.
+
+**Lỗi đã phát hiện:** *ô tìm admin đầu bếp / nguyên liệu hiểu `%`, `_` là wildcard* (cùng loại lỗi bước 7, nhưng nằm ở `searchWhere` của block6 nên bước 7 chưa sửa tới).
+- *Tái hiện* (trước khi sửa, API đang chạy):
+  - `GET /api/chefs?q=%` và `?q=_` → **60 đầu bếp**;
+  - `GET /api/ingredients?q=%` và `?q=_` → **250 nguyên liệu**;
+  - `?q=\` → 0.
+- *Nguyên nhân:* `searchWhere` đưa `q` thẳng vào `contains` (Prisma không escape, xem bước 7). Đầu bếp còn một điều kiện riêng (tên chuyên môn) cũng không escape.
+- *Cách sửa:* mọi điều kiện tìm admin đi qua `searchWhere`, hàm này gọi `escapeLike` một lần.
+- *Bằng chứng sau khi sửa:*
+  - `q=%`, `q=_`, `q=\` → `total: 0` cho cả hai API;
+  - SQL đếm tên/đơn vị chứa `%`, `_`, `\` → 0 (vậy 0 là đúng);
+  - nằm trong `check-api.sh F`.
+
+**Đã kiểm tra:**
+- Database trước khi chạy test và seed: host `aws-0-ap-southeast-1.pooler.supabase.com`, ref `ovirbpyprylgaqgvgzil` (block7).
+- Request thật:
+  - `/api/chefs` → 20 dòng, id 1–20, total 60;
+  - `page=3` → id 41–60; `page=4` → `items: []`, total 60, page 4;
+  - `/api/ingredients?page=13` → id 241–250;
+  - `all=true&page=99` → 250 dòng, page 1, pageSize 250;
+  - `page=0`, `pageSize=101`, `all=1`, `all` lặp → `VALIDATION_FAILED` đúng trường.
+- `total` khớp SQL: `/api/chefs?q=mai` → 6 (SQL tên ILIKE hoặc tên chuyên môn ILIKE: 6); `/api/ingredients?q=lít` → 6 (SQL: 6).
+- `check-api.sh`: **251/251 đạt** (211 cũ + 40 phần F). Phần F gom mọi trang (7 dòng/trang): đúng `[1..60]` và `[1..250]`, tăng dần, không lặp/mất.
+- Chrome headless (Vite :5173, **7/7 đạt**):
+  - form thêm món có 60 đầu bếp, đủ ô tick nguyên liệu + tag;
+  - form sửa món 1 có đầu bếp chọn sẵn;
+  - trang xoá đầu bếp 1 có đủ người nhận;
+  - hai bảng admin vẫn 60 / 250 dòng;
+  - không lỗi console; request là `/api/chefs?all=true`, `/api/ingredients?all=true`.
+- `vite build` thành công. Seed lại sau khi test.
+
+**Trạng thái:** hai bảng admin đầu bếp, nguyên liệu chưa có số trang; admin món vẫn `moi-nhat` → bước 20.

@@ -1,4 +1,4 @@
-import { MAX_INT } from "./common.js";
+import { MAX_INT, queryStr } from "./common.js";
 import { parseId } from "./id.js";
 
 // Đọc + validate query string của GET /api/dishes (plan mục 5.3). Query string luôn là CHUỖI (hoặc mảng khi lặp
@@ -9,6 +9,7 @@ import { parseId } from "./id.js";
 // Không dùng `if (value)` cho giá trị đã parse: false và 0 là tiêu chí có hiệu lực.
 
 export const PAGE_SIZE_DEFAULT = 12;
+export const ADMIN_PAGE_SIZE_DEFAULT = 20;
 export const PAGE_SIZE_MAX = 100;
 
 // fulltext, fuzzy: chỉ đọc q (bắt buộc), xếp theo điểm phù hợp — không nhận sort và tiêu chí của advanced.
@@ -21,7 +22,7 @@ export const SORTS = {
   ten: [{ name: "asc" }, { id: "asc" }],
   "gia-tang": [{ price: "asc" }, { id: "asc" }],
   "gia-giam": [{ price: "desc" }, { id: "asc" }],
-  "moi-nhat": [{ id: "desc" }], // admin: món vừa thêm nằm ở trang 1 (plan mục 10.9)
+  "moi-nhat": [{ id: "desc" }], // giữ trong API; admin đã thôi dùng, xếp id tăng dần (plan mục 12)
 };
 
 // Trang admin tìm thêm theo tên tag (giữ từ block6, mở rộng của basic). Khoá lạ bị bỏ qua như block6.
@@ -37,16 +38,50 @@ function text(raw) {
   return { value: v === "" ? null : v };
 }
 
+// Đọc một tham số chuỗi; lỗi (mảng) ghi vào `errors` theo đúng tên tham số.
+const reader = (query, errors) => (key) => {
+  const r = text(query[key]);
+  if (r.error) errors[key] = r.error;
+  return r.value ?? null;
+};
+
+// page, pageSize — dùng chung cho /api/dishes, /api/chefs, /api/ingredients (cùng quy tắc, khác mặc định).
+// Thiếu/trắng → mặc định; sai (0, âm, lẻ, chữ, > 100) → lỗi, không tự sửa: người gọi biết tham số không được áp dụng.
+export function parsePaging(query, errors, { defaultSize, noun }) {
+  const read = reader(query, errors);
+  const rawPage = read("page");
+  const rawSize = read("pageSize");
+
+  let page = 1;
+  if (rawPage !== null) {
+    page = parseId(rawPage);
+    if (page === null) errors.page = "Số trang phải là số nguyên dương.";
+  }
+
+  let pageSize = defaultSize;
+  if (rawSize !== null) {
+    pageSize = parseId(rawSize);
+    if (pageSize === null || pageSize > PAGE_SIZE_MAX) errors.pageSize = `Số ${noun} mỗi trang phải từ 1 đến ${PAGE_SIZE_MAX}.`;
+  }
+  return { page, pageSize };
+}
+
+// Danh sách admin đầu bếp / nguyên liệu: ?q= &page= &pageSize= hoặc ?all=true (form cần đủ danh sách để chọn).
+// q giữ cách đọc của block6 (mảng ?q=a&q=b → coi như không có). `all` chỉ nhận đúng chuỗi "true".
+export function parseAdminListQuery(query, noun) {
+  const errors = {};
+  const { page, pageSize } = parsePaging(query, errors, { defaultSize: ADMIN_PAGE_SIZE_DEFAULT, noun });
+  const rawAll = reader(query, errors)("all");
+  if (rawAll !== null && rawAll !== "true") errors.all = "Tham số all chỉ nhận giá trị true.";
+  return { q: queryStr(query.q), all: rawAll === "true", page, pageSize, errors };
+}
+
 export function parseListQuery(query) {
   const errors = {};
-  const read = (key) => {
-    const r = text(query[key]);
-    if (r.error) errors[key] = r.error;
-    return r.value ?? null;
-  };
+  const read = reader(query, errors);
 
   const raw = {
-    mode: read("mode"), q: read("q"), page: read("page"), pageSize: read("pageSize"), sort: read("sort"),
+    mode: read("mode"), q: read("q"), sort: read("sort"),
     tag: read("tag"), minPrice: read("minPrice"), maxPrice: read("maxPrice"), available: read("available"),
     searchIn: read("searchIn"),
   };
@@ -54,17 +89,7 @@ export function parseListQuery(query) {
   const mode = raw.mode ?? "basic";
   if (!MODES.includes(mode)) errors.mode = `Chế độ tìm phải là một trong: ${MODES.join(", ")}.`;
 
-  let page = 1;
-  if (raw.page !== null) {
-    page = parseId(raw.page);
-    if (page === null) errors.page = "Số trang phải là số nguyên dương.";
-  }
-
-  let pageSize = PAGE_SIZE_DEFAULT;
-  if (raw.pageSize !== null) {
-    pageSize = parseId(raw.pageSize);
-    if (pageSize === null || pageSize > PAGE_SIZE_MAX) errors.pageSize = `Số món mỗi trang phải từ 1 đến ${PAGE_SIZE_MAX}.`;
-  }
+  const { page, pageSize } = parsePaging(query, errors, { defaultSize: PAGE_SIZE_DEFAULT, noun: "món" });
 
   const sort = raw.sort ?? "";
   if (!Object.hasOwn(SORTS, sort)) errors.sort = "Cách sắp xếp không hợp lệ.";
@@ -111,6 +136,11 @@ export function parseListQuery(query) {
 // PostgreSQL dùng `\` làm ký tự escape mặc định của LIKE/ILIKE, nên chỉ hai dấu % do Prisma thêm ở hai đầu là wildcard.
 // Parameter binding (Prisma) chống SQL injection; escaping này giữ đúng NGHĨA "chứa đúng chuỗi người dùng nhập".
 export const escapeLike = (s) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+// Tìm admin đầu bếp / nguyên liệu: từ khoá khớp ở BẤT KỲ điều kiện nào trong `matchers`. Không có từ khoá → {} (lấy tất cả).
+// Escape như món: trước khi sửa, q=% và q=_ trả cả 60 đầu bếp, 250 nguyên liệu (plan mục 12, BUILD_LOG bước 19).
+export const containsIn = (field) => (s) => ({ [field]: { contains: s, mode: "insensitive" } });
+export const searchWhere = (q, matchers) => (q ? { OR: matchers.map((match) => match(escapeLike(q))) } : {});
 
 // Điều kiện Prisma cho basic / advanced. Các tiêu chí nối bằng AND; tiêu chí null = không áp dụng.
 // `q` là literal contains trên tên, không phân biệt hoa thường (ILIKE, tham số bind).

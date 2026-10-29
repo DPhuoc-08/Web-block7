@@ -30,6 +30,21 @@ export const isUniqueViolation = (err) => err?.code === "P2002";
 // P2003: vi phạm khoá ngoại → khi xoá: IN_USE; khi tạo/sửa món (đầu bếp/nguyên liệu vừa bị xoá): VALIDATION_FAILED.
 export const isForeignKeyViolation = (err) => err?.code === "P2003";
 
+// Một trang danh sách admin (đầu bếp, nguyên liệu), xếp id tăng dần — khoá chính nên thứ tự đã xác định.
+// `total` đếm CÙNG `where` với `rows`, hai câu trong một transaction RepeatableRead (như GET /api/dishes).
+// LIMIT/OFFSET (take/skip) chạy tại PostgreSQL; `all` (form cần đủ danh sách) bỏ LIMIT/OFFSET, giữ dạng response.
+export async function findPage(delegate, { where, include }, { all, page, pageSize }) {
+  const [total, rows] = await prisma.$transaction(
+    [
+      delegate.count({ where }),
+      delegate.findMany({ where, include, orderBy: { id: "asc" }, ...(all ? {} : { skip: (page - 1) * pageSize, take: pageSize }) }),
+    ],
+    { isolationLevel: "RepeatableRead", maxWait: 10_000, timeout: 15_000 },
+  );
+  // Trang vượt phạm vi: rows rỗng, total thật, page giữ như yêu cầu.
+  return { rows, total, page: all ? 1 : page, pageSize: all ? total : pageSize };
+}
+
 // Tên đã có (không phân biệt hoa thường) ở bản ghi khác chưa? `delegate` = prisma.chef / prisma.ingredient / prisma.tag.
 // @unique trong schema phân biệt hoa thường, nên kiểm tra thêm ở app để "tỏi" không trùng với "Tỏi".
 export async function nameTaken(delegate, name, excludeId = null) {

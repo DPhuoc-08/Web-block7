@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { getChef, listChefs, deleteChef } from "../../../api/chefs.js";
+import { getChef, listAllChefs, deleteChef } from "../../../api/chefs.js";
 import { isBusiness } from "../../../api/client.js";
 import { useLoad } from "../../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
@@ -15,7 +15,7 @@ export default function ChefDeletePage() {
   const { id } = useParams();
   useDocumentTitle("Xoá đầu bếp");
   const navigate = useNavigate();
-  const { status, data, reload } = useLoad((signal) => Promise.all([getChef(id, { signal }), listChefs({}, { signal })]), [id]);
+  const { status, data, reload } = useLoad((signal) => Promise.all([getChef(id, { signal }), listAllChefs({ signal })]), [id]);
   const [transferTo, setTransferTo] = useState("");
   const [fieldError, setFieldError] = useState(null);
   const [error, setError] = useState(null);

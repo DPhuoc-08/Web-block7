@@ -6,7 +6,8 @@
 #   ./scripts/check-api.sh C          → chỉ phần C (phân trang GET /api/dishes — block7)
 #   ./scripts/check-api.sh D          → chỉ phần D (search basic / advanced — block7)
 #   ./scripts/check-api.sh E          → chỉ phần E (tag của món và chuyên môn đầu bếp — block7)
-# Phần C, D đối chiếu với dữ liệu seed (1.200 món) → chạy `npx prisma db seed` trước.
+#   ./scripts/check-api.sh F          → chỉ phần F (phân trang admin đầu bếp, nguyên liệu — plan mục 12)
+# Phần C, D, F đối chiếu với dữ liệu seed (1.200 món, 60 đầu bếp, 250 nguyên liệu) → chạy `npx prisma db seed` trước.
 # Kiểm tra 500 (mất kết nối DB): chạy thêm một API với DATABASE_URL sai ở cổng khác rồi đặt
 #   API_BROKEN=http://localhost:3001 ./scripts/check-api.sh A
 # Script tự tạo rồi tự xoá món/đầu bếp/nguyên liệu test. Tag test KHÔNG xoá được (API không có xoá tag)
@@ -170,7 +171,7 @@ simple_resource() {
   local path=$1 label=$2 extra=$3 required=$4 empty_keys=$5
   echo "== A. $label $path"
   req GET "$path"
-  expect "Danh sách → 200, ok, mảng, mỗi phần tử có dishCount" 200 '.ok and (.data | type == "array") and (.data | length > 0) and all(.data[]; .dishCount | type == "number")'
+  expect "Danh sách → 200, ok, data.items là mảng, mỗi phần tử có dishCount" 200 '.ok and (.data.items | type == "array") and (.data.items | length > 0) and all(.data.items[]; .dishCount | type == "number")'
   req GET "$path/1"
   expect "Chi tiết /1 → bản ghi kèm dishes" 200 '.ok and .data.id == 1 and (.data.dishes | type == "array")'
   for bad in 999999 abc 2.5; do
@@ -240,16 +241,16 @@ part_b() {
 
   echo "== B. Tìm kiếm admin: đầu bếp (tên, chuyên môn), nguyên liệu (tên, đơn vị)"
   req GET "/api/chefs?q=TR%C3%81NG%20MI%E1%BB%86NG"
-  expect '/api/chefs?q=TRÁNG MIỆNG → khớp tên chuyên môn (tag)' 200 '(.data | length >= 1) and all(.data[]; any(.tags[]; .name == "Tráng miệng"))'
+  expect '/api/chefs?q=TRÁNG MIỆNG → khớp tên chuyên môn (tag)' 200 '(.data.items | length >= 1) and all(.data.items[]; any(.tags[]; .name == "Tráng miệng"))'
   req GET "/api/chefs?q=mai"
-  expect '/api/chefs?q=mai → khớp tên' 200 '(.data | length >= 1) and all(.data[]; .name | test("mai"; "i"))'
+  expect '/api/chefs?q=mai → khớp tên' 200 '(.data.items | length >= 1) and all(.data.items[]; .name | test("mai"; "i"))'
   req GET "/api/ingredients?q=l%C3%ADt"
-  expect '/api/ingredients?q=lít → khớp đơn vị' 200 '(.data | length >= 1) and all(.data[]; .unit == "lít")'
+  expect '/api/ingredients?q=lít → khớp đơn vị' 200 '(.data.items | length >= 1) and all(.data.items[]; .unit == "lít")'
   req GET /api/ingredients
   local ing_total
-  ing_total=$(jq '.data | length' <<<"$BODY")
+  ing_total=$(jq '.data.total' <<<"$BODY")
   req GET "/api/ingredients?q=a&q=b"
-  expect "/api/ingredients?q=a&q=b (mảng) → bỏ qua, trả đủ $ing_total" 200 "(.data | length == $ing_total)"
+  expect "/api/ingredients?q=a&q=b (mảng) → bỏ qua, total đủ $ing_total" 200 "(.data.total == $ing_total)"
 
   echo "== B. Món ăn: ảnh minh hoạ (imageUrl, imageCredit)"
   local base='"name":"Món ảnh","price":1000,"tagIds":[1],"chefId":1,"ingredientIds":[1]'
@@ -535,10 +536,65 @@ part_e() {
   expect "Sửa tên, không gửi tagIds → chuyên môn giữ nguyên" 200 '.ok and ([.data.tags[].id] == [13])'
   req GET "/api/chefs/$chef"
   expect "Chi tiết đầu bếp → có tags, dishes" 200 '.ok and ([.data.tags[].id] == [13]) and .data.dishes == []'
-  req GET "/api/chefs?q=m%C3%B3n%20chay"
-  expect "/api/chefs?q=món chay → thấy đầu bếp vừa đổi chuyên môn" 200 "any(.data[]; .id == $chef)"
+  req GET "/api/chefs?q=m%C3%B3n%20chay&all=true"
+  expect "/api/chefs?q=món chay → thấy đầu bếp vừa đổi chuyên môn" 200 "any(.data.items[]; .id == $chef)"
   req DELETE "/api/chefs/$chef"
   expect "Xoá đầu bếp 0 món → ok (chuyên môn tự xoá theo Cascade)" 200 '.ok == true'
+}
+
+# Gom id của mọi trang (pageSize nhỏ để đi qua nhiều trang) → kiểm tra không lặp, không mất.
+collect_ids() {
+  local path=$1 page=1 all="[]" ids
+  while :; do
+    req GET "$path?pageSize=7&page=$page"
+    ids=$(jq -c '[.data.items[].id]' <<<"$BODY")
+    [ "$ids" = "[]" ] && break
+    all=$(jq -c --argjson a "$all" --argjson b "$ids" -n '$a + $b')
+    page=$((page + 1))
+  done
+  echo "$all"
+}
+
+part_f() {
+  local pair path total last
+  for pair in "/api/chefs:60" "/api/ingredients:250"; do
+    path=${pair%%:*} total=${pair##*:} last=$(((total + 19) / 20))
+    echo "== F. Phân trang admin GET $path (seed $total dòng)"
+    req GET "$path"
+    expect "Mặc định: page 1, pageSize 20, total $total, id 1–20 (id tăng dần)" 200 ".ok and .data.page == 1 and .data.pageSize == 20 and .data.total == $total and ([.data.items[].id] == [range(1;21)])"
+    req GET "$path?page=2"
+    expect "page=2 → id 21–40 (OFFSET 20)" 200 '[.data.items[].id] == [range(21;41)]'
+    req GET "$path?page=$last"
+    expect "page=$last (trang cuối) → món cuối là id $total" 200 ".data.items[-1].id == $total"
+    req GET "$path?page=$((last + 1))"
+    expect "page=$((last + 1)) (vượt phạm vi) → ok, items [], total $total, page giữ $((last + 1))" 200 ".ok and .data.items == [] and .data.total == $total and .data.page == $((last + 1))"
+    req GET "$path?all=true&page=5&pageSize=1"
+    expect "all=true → đủ $total dòng, bỏ qua page/pageSize, page 1, pageSize = total" 200 ".ok and (.data.items | length) == $total and .data.page == 1 and .data.pageSize == $total"
+    for bad in 0 -1 abc 2.5; do
+      req GET "$path?page=$bad"
+      expect_code "page=$bad → VALIDATION_FAILED fields.page" VALIDATION_FAILED '(.error.fields | keys) == ["page"]'
+    done
+    for bad in 0 101 abc; do
+      req GET "$path?pageSize=$bad"
+      expect_code "pageSize=$bad → VALIDATION_FAILED fields.pageSize" VALIDATION_FAILED '(.error.fields | keys) == ["pageSize"]'
+    done
+    for bad in 1 false TRUE; do
+      req GET "$path?all=$bad"
+      expect_code "all=$bad → VALIDATION_FAILED fields.all" VALIDATION_FAILED '(.error.fields | keys) == ["all"]'
+    done
+    BODY=$(collect_ids "$path"); STATUS=200
+    expect "Gom mọi trang (7 dòng/trang): đủ $total id, tăng dần, không trùng" 200 ". == [range(1; $((total + 1)))]"
+    # Ký tự đặc biệt là chữ thường: không tên/đơn vị nào chứa % _ \ (đã đếm bằng SQL) → 0 kết quả, không phải tất cả.
+    for q in %25 _ %5C; do
+      req GET "$path?q=$q"
+      expect "q=$q (literal) → ok, total 0" 200 '.ok and .data.total == 0 and .data.items == []'
+    done
+  done
+  # total đếm cùng điều kiện q, không đếm cả bảng (số kỳ vọng đếm bằng SQL trên seed).
+  req GET "/api/chefs?q=mai&pageSize=4&page=2"
+  expect "/api/chefs?q=mai&pageSize=4&page=2 → total 6 (khớp SQL), trang 2 còn 2 dòng" 200 '.data.total == 6 and (.data.items | length) == 2 and all(.data.items[]; .name | test("mai"; "i"))'
+  req GET "/api/ingredients?q=l%C3%ADt"
+  expect "/api/ingredients?q=lít → total 6 (khớp SQL)" 200 '.data.total == 6'
 }
 
 case $PART in
@@ -547,7 +603,8 @@ case $PART in
   C) part_c ;;
   D) part_d ;;
   E) part_e ;;
-  *) part_a; part_b; part_c; part_d; part_e ;;
+  F) part_f ;;
+  *) part_a; part_b; part_c; part_d; part_e; part_f ;;
 esac
 
 echo

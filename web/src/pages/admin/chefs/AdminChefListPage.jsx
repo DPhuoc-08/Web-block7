@@ -13,7 +13,7 @@ export default function AdminChefListPage() {
   useDocumentTitle("Quản trị đầu bếp");
   const [searchParams] = useSearchParams();
   const q = searchParams.get("q")?.trim() ?? "";
-  const { status, data: chefs, reload } = useLoad((signal) => listChefs({ q }, { signal }), [q]);
+  const { status, data: chefs, reload } = useLoad((signal) => listChefs({ q, all: true }, { signal }).then((d) => d.items), [q]);
   const { savedId, savedRowRef } = useJustSaved();
 
   return (
