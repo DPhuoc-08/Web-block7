@@ -109,10 +109,20 @@ URL trang: `/dishes?mode=advanced&minPrice=abc` · ảnh: [screens/tham-so-sai.p
 | `/api/tags` | 200 | application/json | 0.2 KB | mảng 18 tag |
 | `/api/dishes?mode=advanced&pageSize=12&minPrice=abc` | 200 | application/json | 0.5 KB | ok: false, VALIDATION_FAILED (minPrice) |
 
-### Admin món — tìm “lẩu”, trang 2 (20 món/trang, mới nhất trước)
+### Admin món — tìm “lẩu”, trang 2 (20 món/trang, id tăng dần — thu lại 29/10/2026)
 
 URL trang: `/admin/dishes?q=lẩu&page=2` · ảnh: [screens/admin.png](../screens/admin.png) · SQL: [sql-log/admin.txt](../sql-log/admin.txt)
 
 | Request (fetch) | Status | Kiểu | Dung lượng | Nội dung |
 | :--- | :--- | :--- | :--- | :--- |
-| `/api/dishes?q=lẩu&searchIn=name,tag&sort=moi-nhat&page=2&pageSize=20` | 200 | application/json | 7.2 KB | items 20, total 61, page 2, pageSize 20 |
+| `/api/dishes?q=lẩu&searchIn=name,tag&page=2&pageSize=20` | 200 | application/json | 6.9 KB | items 20, total 61, page 2, pageSize 20; id 501 … 848 tăng dần |
+
+### Admin đầu bếp — trang 2 (20 đầu bếp/trang, id tăng dần — thêm 29/10/2026)
+
+URL trang: `/admin/chefs?page=2` · ảnh: [screens/admin-dau-bep.png](../screens/admin-dau-bep.png) · SQL: [sql-log/admin-dau-bep.txt](../sql-log/admin-dau-bep.txt)
+
+| Request (fetch) | Status | Kiểu | Dung lượng | Nội dung |
+| :--- | :--- | :--- | :--- | :--- |
+| `/api/chefs?page=2&pageSize=20` | 200 | application/json | 2.2 KB | items 20 (id 21–40), total 60, page 2, pageSize 20 |
+
+Trước đây (bước 19 trở về trước) trang này gọi `/api/chefs` và nhận cả 60 đầu bếp; admin nguyên liệu nhận cả 250 nguyên liệu. Form món, trang xoá đầu bếp vẫn cần đủ danh sách nên gọi `?all=true`.

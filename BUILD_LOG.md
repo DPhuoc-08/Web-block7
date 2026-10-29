@@ -563,3 +563,41 @@ Phương án bỏ:
   - chọn "thịt" (chỉ 6 kết quả) cho ca trang 2;
   - `a.matches()` nhận chữ không phải selector.
   Đổi sang `q=a` (76 kết quả) và sửa hàm.
+
+## Bước 21 — Nghiệm thu lại, cập nhật tài liệu và bằng chứng (plan mục 12)
+**Đã làm:**
+- `README.md`:
+  - `check-api.sh` 251 kiểm tra (thêm dòng phần F);
+  - mục mới "`GET /api/chefs`, `GET /api/ingredients` — phân trang" (metadata, `q`, `page`/`pageSize`, `all=true`);
+  - bảng trang SPA: admin món id tăng dần (không còn `sort=moi-nhat`), admin đầu bếp / nguyên liệu `?q=&page=`;
+  - quy tắc quay về sau khi lưu; `moi-nhat` ghi chú "giữ trong API, admin không dùng".
+- `hotrotrinhbay.html`:
+  - phạm vi: ba bảng quản trị có số trang;
+  - kết quả 251/251;
+  - bảng "lọc và sắp xếp": admin món id tăng dần + dòng admin đầu bếp / nguyên liệu;
+  - lỗi wildcard ở admin trong danh sách lỗi khác.
+- `kichban.html`:
+  - ghi chú `moi-nhat`;
+  - demo bước 18: admin món id 1 ở đầu, đầu bếp / nguyên liệu 20 dòng/trang, thêm đầu bếp → về trang 1 + thông báo;
+  - bảng lỗi thêm dòng bước 19.
+- `evidence/` thu lại phần admin trên seed chuẩn (API `LOG_SQL=1`, SPA `vite` dev):
+  - `sql-log/admin.txt`: `ORDER BY id ASC LIMIT/OFFSET`, id 501 … 848, total 61;
+  - `sql-log/admin-dau-bep.txt` (mới): id 21–40, total 60;
+  - `screens/admin.png`, `screens/admin-dau-bep.png` (mới);
+  - `network-log.md` mục admin món + mục admin đầu bếp; `evidence/README.md` ghi ngày thu lại;
+  - không file nào chứa host / user / mật khẩu (`grep "postgres\.\|pooler\|password"` → 0).
+
+**Đã kiểm tra:**
+- `check-api.sh` trên code cuối: **251/251 đạt**. Seed lại sau đó.
+- Kịch bản bước 20: **47/47** (chạy trước khi viết tài liệu, code SPA không đổi từ đó).
+- Thực đơn không hồi quy:
+  - `/dishes?page=2` → id 13–24;
+  - Tải thêm → 24 món, request `page=2`;
+  - không lỗi console.
+- Hai trang tài liệu ở 1280px không cuộn ngang, mọi link mục lục trỏ đúng id. `vite build` thành công.
+- Chưa chạy lại các kịch bản trình duyệt bước 10–14 (gom id qua 3 kiểu UI). Script của các bước đó không nằm trong repo, và bước 19–20 không sửa thực đơn hay `/api/dishes`; `check-api.sh` C, D vẫn đạt.
+
+**Phát hiện, chưa sửa (ngoài phạm vi, chờ nhóm quyết):** ở 375px, `hotrotrinhbay.html` rộng 594px và `kichban.html` rộng 881px → cuộn ngang.
+- Đo bằng hai cách (giả lập thiết bị và iframe 375px qua HTTP) đều ra cùng con số. Bản HEAD trước bước 21 cũng vậy → lỗi có từ bước 17, không phải do lần sửa này.
+- Bước 17 ghi "không cuộn ngang ở 375px" là **sai**.
+- Phần tràn: các khối `pre`/`code` dài (biểu thức full-text, sơ đồ quan hệ bảng, URL request mẫu).

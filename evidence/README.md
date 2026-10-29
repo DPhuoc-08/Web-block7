@@ -1,6 +1,6 @@
 # Bằng chứng nộp — Block 7 (tìm kiếm và phân trang)
 
-Thu ngày 26/10/2026 trên dữ liệu seed chuẩn (`npx prisma db seed`, tất định), API :3000 và bản production của SPA (`vite build` + `vite preview` :5173). Thư mục này **không** chứa `.env`, chuỗi kết nối, host hay mật khẩu database. Log SQL chỉ có câu SQL và giá trị tham số (từ khoá, số trang).
+Thu ngày 26/10/2026 trên dữ liệu seed chuẩn (`npx prisma db seed`, tất định), API :3000 và bản production của SPA (`vite build` + `vite preview` :5173). Phần admin (`sql-log/admin.txt`, `admin-dau-bep.txt`, `screens/admin.png`, `admin-dau-bep.png`) thu lại ngày 29/10/2026 sau khi bảng admin đổi sang id tăng dần và đầu bếp, nguyên liệu có số trang (plan mục 12), trên seed chuẩn, SPA chạy bằng `vite` dev. Thư mục này **không** chứa `.env`, chuỗi kết nối, host hay mật khẩu database. Log SQL chỉ có câu SQL và giá trị tham số (từ khoá, số trang).
 
 ## Đối chiếu với yêu cầu của đề
 

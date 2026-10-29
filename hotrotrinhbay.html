@@ -158,7 +158,7 @@
       <h3>Chức năng</h3>
       <ul>
         <li><b>Dữ liệu:</b> 1.200 món, 60 đầu bếp, 250 nguyên liệu, 16 tag lưu thật trong Supabase; script seed tất định (chạy lại ra cùng dữ liệu).</li>
-        <li><b>Phân trang:</b> thực đơn <code>/dishes</code> có công tắc <b>Số trang / Tải thêm / Cuộn vô hạn</b>, cả ba gọi chung một API; admin món có số trang.</li>
+        <li><b>Phân trang:</b> thực đơn <code>/dishes</code> có công tắc <b>Số trang / Tải thêm / Cuộn vô hạn</b>, cả ba gọi chung một API; ba bảng quản trị (món, đầu bếp, nguyên liệu) có số trang, xếp id tăng dần.</li>
         <li><b>Lọc, sắp xếp:</b> theo tag, khoảng giá, trạng thái còn phục vụ; tên A→Z, giá tăng / giảm.</li>
         <li><b>Search:</b> cơ bản, nâng cao, toàn văn, gần đúng — đều tại server.</li>
         <li><b>URL:</b> điều kiện đã tìm (và số trang) nằm trên URL → Reload, copy link, Back/Forward mở lại đúng kết quả.</li>
@@ -173,7 +173,7 @@
         <li><b>Chuyển trang sau khi search:</b> giữ đúng bộ điều kiện, không trộn kết quả</li>
         <li><b>Xoá điều kiện, Reload, mở lại link:</b> khôi phục như thiết kế</li>
       </ol>
-      <p class="muted">Kết quả: API <b>211/211</b> kiểm tra (<code>check-api.sh</code>); truy vấn mẫu 14/14 đúng kỳ vọng; kịch bản trình duyệt bước 9–15 đạt hết; <b>cuộn hết 1.200 món: đủ id 1–1200, không trùng, không mất</b>. Chi tiết trong <code>BUILD_LOG.md</code>.</p>
+      <p class="muted">Kết quả: API <b>251/251</b> kiểm tra (<code>check-api.sh</code>, gồm 40 kiểm tra phân trang admin thêm sau nghiệm thu); truy vấn mẫu 14/14 đúng kỳ vọng; kịch bản trình duyệt bước 9–15 đạt hết; <b>cuộn hết 1.200 món: đủ id 1–1200, không trùng, không mất</b>. Chi tiết trong <code>BUILD_LOG.md</code>.</p>
     </div>
   </div>
 </section>
@@ -259,7 +259,8 @@
       <tr><td>Lọc tag, khoảng giá, trạng thái</td><td>Thực đơn, chế độ Nâng cao + chip tag</td><td>Toàn bộ món khớp</td><td>Nối bằng AND; ô trống = không lọc; <code>giá 0</code> và <code>available=false</code> là tiêu chí có hiệu lực</td></tr>
       <tr><td>Sắp xếp tên, giá tăng / giảm</td><td>Thực đơn (Cơ bản, Nâng cao)</td><td>Toàn bộ món khớp</td><td>Luôn thêm <code>id</code> làm thứ tự phụ → các trang chia trên cùng một thứ tự</td></tr>
       <tr><td>Xếp theo độ phù hợp</td><td>Toàn văn, Gần đúng</td><td>Toàn bộ món khớp</td><td>Ô sắp xếp bị khoá; điểm giảm dần rồi <code>id</code></td></tr>
-      <tr><td>Tìm theo tên hoặc tag, mới nhất trước</td><td>Admin món</td><td>Toàn bộ món</td><td>Món vừa thêm luôn ở trang 1</td></tr>
+      <tr><td>Tìm theo tên hoặc tag, id tăng dần</td><td>Admin món</td><td>Toàn bộ món khớp</td><td>Thứ tự cố định 1 → 1200; thêm món xong về trang 1 + thông báo, sửa xong về đúng trang đang xem</td></tr>
+      <tr><td>Tìm, id tăng dần, 20 dòng/trang</td><td>Admin đầu bếp, nguyên liệu</td><td>Toàn bộ đầu bếp / nguyên liệu khớp</td><td>Cùng dạng <code>{ items, total, page, pageSize }</code>; form món cần đủ danh sách gọi <code>?all=true</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -348,7 +349,7 @@ COMMIT</code></pre>
       <p><code>100%</code> → 1 món (id 560), <code>Trà_</code> → 1 món (id 700), <code>\</code> → 1 món (id 960); <code>check-api.sh</code> phần D kiểm tra lại mỗi lần chạy; <code>wildcard-escape.sql</code> chạy cả hai phiên bản trên database.</p>
     </div>
   </div>
-  <p class="muted">Các lỗi khác tìm ra và đã sửa (danh sách cũ còn hiện thoáng qua khi đổi điều kiện ở Tải thêm, khung xương ngắn làm cuộn không tới đầu danh sách…) ghi trong <code>kichban.html</code> và <code>BUILD_LOG.md</code>.</p>
+  <p class="muted">Các lỗi khác tìm ra và đã sửa (danh sách cũ còn hiện thoáng qua khi đổi điều kiện ở Tải thêm, khung xương ngắn làm cuộn không tới đầu danh sách, ô tìm admin đầu bếp / nguyên liệu cũng hiểu <code>%</code> <code>_</code> là wildcard…) ghi trong <code>kichban.html</code> và <code>BUILD_LOG.md</code>.</p>
 </section>
 
 <!-- ============ 7. CÔNG NGHỆ ============ -->
@@ -366,7 +367,7 @@ COMMIT</code></pre>
       <tr><td><code>fetch</code> + <code>AbortController</code></td><td>Gọi API, huỷ request cũ</td><td>Đổi điều kiện nhanh thì response cũ không ghi đè hay nối vào kết quả mới</td></tr>
       <tr><td><code>IntersectionObserver</code></td><td>Cuộn vô hạn</td><td>Có sẵn trong browser; theo dõi một phần tử canh, không gắn sự kiện scroll</td></tr>
       <tr><td>CSS thuần</td><td>Giao diện, responsive, hiệu ứng cơ bản</td><td>Tiếp tục bộ màu block6; khung xương khi tải, món mới hiện dần; tắt chuyển động khi người dùng bật "giảm chuyển động"</td></tr>
-      <tr><td><code>check-api.sh</code> · <code>run-sql.js</code> · Chrome headless</td><td>Nghiệm thu</td><td>211 kiểm tra API; truy vấn mẫu có kỳ vọng; kịch bản trình duyệt gom id qua cả 3 kiểu UI</td></tr>
+      <tr><td><code>check-api.sh</code> · <code>run-sql.js</code> · Chrome headless</td><td>Nghiệm thu</td><td>251 kiểm tra API; truy vấn mẫu có kỳ vọng; kịch bản trình duyệt gom id qua cả 3 kiểu UI</td></tr>
       <tr><td>Git</td><td>Lưu phiên bản</td><td>Mỗi bước một commit; commit "Nghiệm thu giai đoạn I" đánh dấu mốc đạt đủ tiêu chí</td></tr>
     </tbody>
   </table>

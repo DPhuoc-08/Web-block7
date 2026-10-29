@@ -223,7 +223,7 @@ chefs  n &gt;───&lt; n tags              chef_tags        (chefId Cascade,
         <li><code>mode</code>: <code>basic</code> (mặc định) · <code>advanced</code> · <code>fulltext</code> · <code>fuzzy</code></li>
         <li><code>page</code> ≥ 1 (mặc định 1) · <code>pageSize</code> 1–100 (mặc định 12)</li>
         <li><code>q</code>: bắt buộc ở <code>fulltext</code>, <code>fuzzy</code></li>
-        <li><code>sort</code>: <code>ten</code> · <code>gia-tang</code> · <code>gia-giam</code> · <code>moi-nhat</code> (basic, advanced)</li>
+        <li><code>sort</code>: <code>ten</code> · <code>gia-tang</code> · <code>gia-giam</code> · <code>moi-nhat</code> (basic, advanced; <code>moi-nhat</code> = id giảm, giữ trong API, admin không dùng nữa)</li>
         <li><code>tag</code>, <code>minPrice</code>, <code>maxPrice</code>, <code>available</code>: chỉ <code>advanced</code>, nối bằng AND</li>
         <li><code>searchIn=name,tag</code>: admin tìm cả tên tag (basic)</li>
       </ul>
@@ -407,7 +407,7 @@ COMMIT</code></pre></li>
   <h3 style="margin-top:16px">Phần 3 — Tag và chức năng cũ (không hồi quy)</h3>
   <div class="card">
     <ol class="demo" start="18">
-      <li><strong>Admin món:</strong> <code>/admin/dishes</code> → <span class="see">20 món/trang, id 1200 ở đầu (mới nhất trước), 60 trang.</span> Tìm <code>lẩu</code> → <span class="see">61 món (tên hoặc tag), "Combo 100% bò" có trong kết quả.</span> Vào trang 3, sửa một món, Lưu → <span class="see">quay về đúng trang 3 + "Đã lưu thay đổi của món.", dòng được tô.</span></li>
+      <li><strong>Admin món:</strong> <code>/admin/dishes</code> → <span class="see">20 món/trang, id 1 ở đầu (id tăng dần), 60 trang; request <code>/api/dishes?pageSize=20</code>.</span> <code>/admin/chefs</code>, <code>/admin/ingredients</code> → <span class="see">cũng 20 dòng/trang ("Đầu bếp 1–20 trong 60 đầu bếp", 3 trang; nguyên liệu 13 trang), không còn tải cả 60 / 250 dòng.</span> Thêm một đầu bếp từ trang 2 → <span class="see">về trang 1 + "Đã thêm đầu bếp." (người mới ở cuối trang 4).</span> Tìm <code>lẩu</code> → <span class="see">61 món (tên hoặc tag), "Combo 100% bò" có trong kết quả.</span> Vào trang 3, sửa một món, Lưu → <span class="see">quay về đúng trang 3 + "Đã lưu thay đổi của món.", dòng được tô.</span></li>
       <li><strong>Thêm tag trong form:</strong> <code>/admin/chefs/new</code>, gõ tên, ô tìm tag gõ "Món Huế" → <span class="see">không có;</span> bấm "+ Thêm tag" → "Thêm và chọn" → <span class="see"><code>POST /api/tags</code>, tag mới đã tick sẵn, tên vẫn còn.</span> Thêm lại "món huế" → <span class="see">"Đã có tag tên này." (không phân biệt hoa thường).</span></li>
       <li><strong>Đầu bếp đúng chuyên môn:</strong> <code>/admin/dishes/new</code>, tick tag <strong>Lẩu</strong> → <span class="see">các đầu bếp chuyên Lẩu lên đầu danh sách, nhãn "Đúng chuyên môn".</span></li>
       <li><strong>Chức năng block6:</strong> <code>/admin/ingredients/1/delete</code> ("Thịt bò") → <span class="see">liệt kê món đang dùng, không có nút Xoá.</span> <code>/admin/chefs/7/delete</code> ("Bùi Thanh Tâm", 0 món) → <span class="see">xoá được ngay.</span> Tắt API → <span class="see">"Không tải được dữ liệu" + Thử lại ở cả Số trang và Tải thêm.</span></li>
@@ -442,6 +442,7 @@ COMMIT</code></pre></li>
       <tr><td>15</td><td>Chuyển trang không cuộn tới đầu danh sách</td><td>Khung xương 6 dòng làm trang thấp đi → khung xương 12 dòng = một trang</td></tr>
       <tr><td>16</td><td>Đường kẻ dưới mỗi món cong ở hai đầu</td><td><code>border-radius</code> của hiệu ứng nổi đặt sẵn → chỉ bo góc khi rê chuột</td></tr>
       <tr><td>17</td><td>Toàn văn "cá kho tộ": 10 món cùng hiện 1.000 nhưng id lộn xộn (8, 109, 201, 80…)</td><td><code>ts_rank</code> là float4, khác nhau ở sai số → làm tròn 3 chữ số trong SQL rồi mới xếp; thêm kiểm tra vào <code>check-api.sh</code> D</td></tr>
+      <tr><td>19</td><td>Ô tìm admin đầu bếp / nguyên liệu: <code>q=%</code>, <code>q=_</code> trả cả 60 / 250 dòng</td><td><code>searchWhere</code> giữ từ block6 chưa escape (bước 7 chỉ sửa tìm món) → mọi ô tìm admin đi qua <code>escapeLike</code>; <code>check-api.sh</code> F kiểm tra lại (total 0)</td></tr>
     </table></div>
   </div>
 </section>
