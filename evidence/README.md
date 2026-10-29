@@ -1,6 +1,6 @@
 # Bằng chứng nộp — Block 7 (tìm kiếm và phân trang)
 
-Thu ngày 26/10/2026 trên dữ liệu seed chuẩn (`npx prisma db seed`, tất định), API :3000 và bản production của SPA (`vite build` + `vite preview` :5173). Phần admin (`sql-log/admin.txt`, `admin-dau-bep.txt`, `screens/admin.png`, `admin-dau-bep.png`) thu lại ngày 29/10/2026 sau khi bảng admin đổi sang id tăng dần và đầu bếp, nguyên liệu có số trang (plan mục 12), trên seed chuẩn, SPA chạy bằng `vite` dev. Thư mục này **không** chứa `.env`, chuỗi kết nối, host hay mật khẩu database. Log SQL chỉ có câu SQL và giá trị tham số (từ khoá, số trang).
+Thu ngày 26/10/2026 trên dữ liệu seed chuẩn (`npx prisma db seed`, tất định), API :3000 và bản production của SPA (`vite build` + `vite preview` :5173). 11 ảnh thực đơn trong `screens/` (so-trang-1, so-trang-2, tai-them, cuon-vo-han, basic, basic-wildcard, advanced, fulltext, fuzzy, vuot-pham-vi, tham-so-sai) chụp lại ngày 29/10/2026 theo giao diện mới (plan mục 13), cùng URL và cùng kết quả; Network và SQL không đổi vì API không đổi. Phần admin (`sql-log/admin.txt`, `admin-dau-bep.txt`, `screens/admin.png`, `admin-dau-bep.png`) thu lại ngày 29/10/2026 sau khi bảng admin đổi sang id tăng dần và đầu bếp, nguyên liệu có số trang (plan mục 12), trên seed chuẩn, SPA chạy bằng `vite` dev. Thư mục này **không** chứa `.env`, chuỗi kết nối, host hay mật khẩu database. Log SQL chỉ có câu SQL và giá trị tham số (từ khoá, số trang).
 
 ## Đối chiếu với yêu cầu của đề
 
@@ -56,5 +56,5 @@ Lưu vào `evidence/manual/`, đánh dấu khi xong:
 - [ ] `network-tai-them.png` — như trên ở `?view=more`, bấm Tải thêm 2 lần: 3 request `page=1,2,3`, URL trang không đổi.
 - [ ] `network-cuon-vo-han.png` — `?view=scroll`, cuộn xuống: request `page=2,3…` tự gửi, mỗi trang một lần.
 - [ ] `network-4-che-do.png` (hoặc 4 ảnh) — mỗi chế độ ở bảng trên: URL trang + request API + Preview.
-- [ ] `network-mang-cham.png` *(tuỳ chọn)* — Network → Slow 3G, bấm Tải thêm rồi bấm chip khác ngay: request cũ bị huỷ (canceled), danh sách chỉ có kết quả mới.
+- [ ] `network-mang-cham.png` *(tuỳ chọn)* — Network → Slow 3G, bấm Tải thêm rồi bấm ngay một nút danh mục khác: request cũ bị huỷ (canceled), danh sách chỉ có kết quả mới.
 - [ ] `terminal-log-sql.png` — terminal API khi bật `LOG_SQL=1` và mở `/dishes?page=2` (thấy `LIMIT $1 OFFSET $2`, `params: ["12","12"]`).

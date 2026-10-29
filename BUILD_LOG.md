@@ -724,3 +724,30 @@ Phương án bỏ:
   - Đo lại trên commit trước bước 24 (`git stash`, rồi `stash pop`) cũng là 2 → do React StrictMode ở bản dev chạy effect 2 lần (request đầu bị huỷ), ảnh ghép không gọi thêm.
   - Sửa kiểm tra: đếm URL khác nhau = 1.
 - "lẩu" ở thực đơn = 60 chứ không phải 61: 61 là số của admin (tìm cả tên tag, có "Combo 100% bò"); chế độ Cơ bản chỉ tìm theo tên.
+
+## Bước 25 — Nghiệm thu lại sau khi làm lại giao diện thực đơn; tài liệu, ảnh bằng chứng (plan mục 13)
+**Đã kiểm tra:**
+- **Ba kiểu UI không mất / lặp món** (bảng nghiệm thu dòng 1), điều kiện `?mode=advanced&tag=12&sort=gia-tang` (Hải sản, giá tăng — nhiều món cùng giá nên kiểm cả thứ tự phụ theo id).
+  - Kỳ vọng lấy thẳng từ API (100 món/trang): 386 món.
+  - Số trang (bấm Sau tới hết), Tải thêm (mỗi lượt bấm 3 lần liền), Cuộn vô hạn: đều **386/386 id, không trùng, đúng thứ tự API**. Không lỗi console.
+- Kịch bản bước 22 (9/9), 23 (13/13), 24 (33/33) đạt trên code cuối.
+- Kịch bản admin bước 20 chạy lại: **47/47** (ảnh nhỏ bảng admin món nay là minh hoạ). Seed lại sau đó.
+- `check-api.sh` không chạy lại: API không đổi kể từ lần 251/251 ở bước 21 (bước 22–25 chỉ sửa `web/`).
+- `vite build` thành công. Hai trang tài liệu ở 1280px không cuộn ngang, link mục lục đúng.
+
+**Lỗi của script (không phải lỗi app):** lần chạy đầu, Số trang chỉ gom được 24 id (trùng 12).
+- Script chờ "URL đổi + có thẻ món + không có khung xương", điều kiện này đúng ngay lúc URL vừa đổi mà React chưa vẽ lại, nên đọc lại thẻ của trang cũ; lượt sau gặp khung xương (chưa có phân trang) nên dừng sớm.
+- Sửa: chờ tới khi thẻ đầu đổi id → 386/386.
+
+**Tài liệu:**
+- `README.md`: dòng `/dishes` mô tả giao diện mới; cách áp dụng điều kiện (danh mục, sắp xếp dùng điều kiện đã áp dụng).
+- `hotrotrinhbay.html`: "chip tag" → "thanh danh mục"; dòng CSS thuần ghi thực đơn làm lại theo bản phác Figma, 11 hình minh hoạ SVG tự vẽ.
+- `kichban.html`:
+  - kịch bản demo theo giao diện mới: đầu trang + "1.200 món · Trang 1/100", hình minh hoạ, "11 tag khác" → Lẩu / Đồ uống, ô Sắp xếp ở thanh công cụ, "Miễn phí", "Bộ lọc nâng cao", nhãn Tạm hết trên ảnh, responsive;
+  - bảng lỗi thêm lỗi nền xám ở bước 22.
+- `evidence/screens/`: chụp lại 11 ảnh thực đơn (1280×900, cùng URL trong `network-log.md`).
+  - Kết quả khớp bằng chứng cũ: phở 54, `100%` 1, nâng cao 14 (trang 2/2), toàn văn 62, gần đúng 6, `?page=101` trang trống, `?minPrice=abc` lỗi cạnh ô.
+  - Network / SQL không đổi (API không đổi).
+- `evidence/README.md` ghi ngày chụp lại.
+
+**Vẫn còn (đã báo ở bước 21, chờ nhóm quyết):** `hotrotrinhbay.html` / `kichban.html` tràn ngang ở 375px (594 / 882px), không đổi so với trước bước 25.

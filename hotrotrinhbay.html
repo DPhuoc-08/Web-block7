@@ -256,7 +256,7 @@
   <table>
     <thead><tr><th>Chức năng</th><th>Ở đâu</th><th>Áp dụng cho</th><th>Ghi chú</th></tr></thead>
     <tbody>
-      <tr><td>Lọc tag, khoảng giá, trạng thái</td><td>Thực đơn, chế độ Nâng cao + chip tag</td><td>Toàn bộ món khớp</td><td>Nối bằng AND; ô trống = không lọc; <code>giá 0</code> và <code>available=false</code> là tiêu chí có hiệu lực</td></tr>
+      <tr><td>Lọc tag, khoảng giá, trạng thái</td><td>Thực đơn, chế độ Nâng cao + thanh danh mục</td><td>Toàn bộ món khớp</td><td>Nối bằng AND; ô trống = không lọc; <code>giá 0</code> và <code>available=false</code> là tiêu chí có hiệu lực</td></tr>
       <tr><td>Sắp xếp tên, giá tăng / giảm</td><td>Thực đơn (Cơ bản, Nâng cao)</td><td>Toàn bộ món khớp</td><td>Luôn thêm <code>id</code> làm thứ tự phụ → các trang chia trên cùng một thứ tự</td></tr>
       <tr><td>Xếp theo độ phù hợp</td><td>Toàn văn, Gần đúng</td><td>Toàn bộ món khớp</td><td>Ô sắp xếp bị khoá; điểm giảm dần rồi <code>id</code></td></tr>
       <tr><td>Tìm theo tên hoặc tag, id tăng dần</td><td>Admin món</td><td>Toàn bộ món khớp</td><td>Thứ tự cố định 1 → 1200; thêm món xong về trang 1 + thông báo, sửa xong về đúng trang đang xem</td></tr>
@@ -366,7 +366,7 @@ COMMIT</code></pre>
       <tr><td>React 19 · React Router 8 (thư viện) · Vite 8</td><td>SPA</td><td>Giữ block6; điều kiện tìm đọc / ghi bằng <code>useSearchParams</code> trên URL</td></tr>
       <tr><td><code>fetch</code> + <code>AbortController</code></td><td>Gọi API, huỷ request cũ</td><td>Đổi điều kiện nhanh thì response cũ không ghi đè hay nối vào kết quả mới</td></tr>
       <tr><td><code>IntersectionObserver</code></td><td>Cuộn vô hạn</td><td>Có sẵn trong browser; theo dõi một phần tử canh, không gắn sự kiện scroll</td></tr>
-      <tr><td>CSS thuần</td><td>Giao diện, responsive, hiệu ứng cơ bản</td><td>Tiếp tục bộ màu block6; khung xương khi tải, món mới hiện dần; tắt chuyển động khi người dùng bật "giảm chuyển động"</td></tr>
+      <tr><td>CSS thuần</td><td>Giao diện, responsive, hiệu ứng cơ bản</td><td>Tiếp tục bộ màu block6; thực đơn làm lại theo bản phác Figma của nhóm (đầu trang, danh mục, thẻ món dạng lưới, 11 hình minh hoạ SVG tự vẽ cho món chưa có ảnh); khung xương khi tải, món mới hiện dần; tắt chuyển động khi người dùng bật "giảm chuyển động"</td></tr>
       <tr><td><code>check-api.sh</code> · <code>run-sql.js</code> · Chrome headless</td><td>Nghiệm thu</td><td>251 kiểm tra API; truy vấn mẫu có kỳ vọng; kịch bản trình duyệt gom id qua cả 3 kiểu UI</td></tr>
       <tr><td>Git</td><td>Lưu phiên bản</td><td>Mỗi bước một commit; commit "Nghiệm thu giai đoạn I" đánh dấu mốc đạt đủ tiêu chí</td></tr>
     </tbody>

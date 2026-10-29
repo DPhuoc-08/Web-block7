@@ -146,7 +146,7 @@ Tag chỉ thêm, không sửa / xoá (nhóm chốt).
 
 | URL | Nội dung | Gọi API |
 | :--- | :--- | :--- |
-| `/dishes` | Thực đơn: khung tìm 4 chế độ, chip tag, sắp xếp; công tắc **Số trang / Tải thêm / Cuộn vô hạn** | `GET /api/dishes?…&pageSize=12`, `GET /api/tags` |
+| `/dishes` | Thực đơn (giao diện theo bản phác Figma, plan mục 13): đầu trang + khung tìm 4 chế độ ("Bộ lọc nâng cao"), thanh danh mục tag, thẻ món dạng lưới (hình minh hoạ theo loại món khi chưa có ảnh); thanh công cụ: **Số trang / Tải thêm / Cuộn vô hạn** + sắp xếp | `GET /api/dishes?…&pageSize=12`, `GET /api/tags` |
 | `/dishes/:id` | Chi tiết: ảnh, giá, tag (link lọc), đầu bếp, nguyên liệu | `GET /api/dishes/:id` |
 | `/admin/dishes?q=&page=` | Quản trị món: 20 món/trang, id tăng dần, tìm theo tên hoặc tag | `GET /api/dishes?searchIn=name,tag&pageSize=20` |
 | `/admin/dishes/new`, `/:id/edit`, `/:id/delete` | Form món (chọn nhiều tag, thêm tag mới, đầu bếp đúng chuyên môn lên đầu), xác nhận xoá | `/api/dishes…`, `/api/tags` |
@@ -156,7 +156,7 @@ Tag chỉ thêm, không sửa / xoá (nhóm chốt).
 **Sau khi lưu ở trang quản trị:** sửa / xoá / Huỷ → về đúng trang danh sách đang xem (giữ `page`, `q`), dòng vừa sửa được tô. Thêm mới → về trang 1 + thông báo (bản ghi mới nằm ở trang cuối).
 
 **URL của thực đơn** chứa toàn bộ điều kiện đã áp dụng: `/dishes?mode=&q=&tag=&minPrice=&maxPrice=&available=&sort=&view=&page=` (giá trị mặc định không ghi).
-- Áp dụng điều kiện khi bấm Tìm / Enter (ô chữ) hoặc khi đổi ô chọn, chip — không theo từng phím. Đổi điều kiện → về trang 1 / danh sách mới. Chuyển trang → giữ điều kiện, chỉ đổi `page`.
+- Áp dụng điều kiện khi bấm Tìm / Enter (ô chữ) hoặc khi đổi ô chọn, bấm nút danh mục, đổi sắp xếp — không theo từng phím. Danh mục và sắp xếp dùng điều kiện đã áp dụng trên URL. Đổi điều kiện → về trang 1 / danh sách mới. Chuyển trang → giữ điều kiện, chỉ đổi `page`.
 - `view=pages` (mặc định): `page` nằm trên URL → Reload, copy link, Back/Forward mở lại đúng trang.
 - `view=more`, `view=scroll`: `page` không ghi lên URL → mở lại link thì **tải lại từ đầu** với cùng điều kiện. Hai kiểu dùng chung `loadNext()`: không gửi trùng, bỏ response của điều kiện cũ, lỗi thì giữ danh sách và cho Thử lại. Cuộn vô hạn có nút "Tải thêm" dự phòng.
 - URL sửa tay sai (`?page=0`, `?minPrice=abc`) → lỗi cạnh ô + "Xoá bộ lọc", không trang trắng.
