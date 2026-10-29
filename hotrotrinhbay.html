@@ -234,7 +234,7 @@
     <thead><tr><th>Kiểu</th><th>Hành vi</th><th>URL</th><th>Mở lại link</th></tr></thead>
     <tbody>
       <tr><td>Số trang <code>view=pages</code></td><td>Bấm trang → request trang đó, <b>thay</b> danh sách; cuộn mượt về đầu danh sách, focus vào đó</td><td>Có <code>page</code></td><td>Đúng trang và điều kiện</td></tr>
-      <tr><td>Tải thêm <code>view=more</code></td><td>Bấm nút → request trang kế, <b>nối</b> vào; hết thì "Đã hiện hết N món"</td><td>Không có <code>page</code></td><td><b>Tải lại từ đầu</b>, giữ điều kiện</td></tr>
+      <tr><td>Tải thêm <code>view=more</code></td><td>Bấm nút → request trang kế, <b>nối</b> vào; hết thì "Bạn đã xem hết danh sách."</td><td>Không có <code>page</code></td><td><b>Tải lại từ đầu</b>, giữ điều kiện</td></tr>
       <tr><td>Cuộn vô hạn <code>view=scroll</code></td><td><code>IntersectionObserver</code> thấy phần tử canh cuối danh sách → nối trang kế; vẫn có nút "Tải thêm" dự phòng</td><td>Không có <code>page</code></td><td><b>Tải lại từ đầu</b>, giữ điều kiện</td></tr>
     </tbody>
   </table>

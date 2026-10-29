@@ -33,7 +33,7 @@ export default function Layout() {
       {!isAdmin && (
         <footer className="site-footer">
           <div className="container">
-            <span>Nhà hàng · Giao diện SPA, dữ liệu đọc từ REST API ở mỗi lần mở trang.</span>
+            <span>© 2026 Nhà hàng · Món Việt ba miền</span>
           </div>
         </footer>
       )}

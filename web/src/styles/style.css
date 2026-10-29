@@ -360,7 +360,6 @@ a.tag-chip:hover { border-color: var(--primary); color: var(--primary); text-dec
 /* Cuối danh sách nối thêm. */
 .load-more { display: grid; justify-items: center; gap: 10px; margin: 24px 0 8px; }
 .load-more .alert { margin: 0; }
-.load-count { font-size: .9rem; }
 .load-end { text-align: center; margin: 24px 0 8px; }
 .sentinel { height: 1px; }
 @media (max-width: 600px) {
@@ -526,8 +525,6 @@ a, .btn, .cat-pill, .cat-more, .filter-toggle, .page-num, .page-btn, .view-btn, 
 
 /* Thanh công cụ: kết quả (trái) + cách hiển thị và sắp xếp (phải). */
 .menu-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; padding: 28px 0 20px; }
-.result-total { font-size: 1.35rem; font-weight: 600; color: var(--text); }
-.result-page { font-size: .95rem; }
 .toolbar-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .sort-pick { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--muted); }
 .sort-pick select { width: auto; font-weight: 600; font-size: .9rem; }
@@ -557,5 +554,4 @@ a, .btn, .cat-pill, .cat-more, .filter-toggle, .page-num, .page-btn, .view-btn, 
   .toolbar-tools .view-switch { flex: 1 1 100%; }
   .sort-pick { flex: 1 1 100%; }
   .sort-pick select { flex: 1 1 auto; }
-  .result-total { font-size: 1.15rem; }
 }

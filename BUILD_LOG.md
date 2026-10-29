@@ -763,3 +763,49 @@ Phương án bỏ:
 - 375px giả lập: `scrollWidth` = 375 cho cả 2 trang; mọi phần tử vượt khung đều nằm trong `pre` / `.table-wrap` (vùng tự cuộn); 3 + 7 khối `pre` vừa khung.
 - Iframe 375px qua HTTP: `scrollWidth` 375 = `clientWidth` cho cả 2 trang.
 - 1280px: không cuộn ngang, link mục lục đúng id.
+
+## Bước 27 — Bỏ dòng đếm ở trang khách, slogan và chân trang mới (plan 13.4)
+**Yêu cầu của nhóm:** các dòng như "1200 món", "Món 1–12 trong 1200 món", chân trang "Giao diện SPA, dữ liệu đọc từ REST API…" thừa khi triển khai thật; slogan / giới thiệu quá thô. Nhóm hỏi 12 món/trang có đúng đề không.
+
+**Trả lời về 12 món/trang:** đúng đề.
+- Đề không quy định `pageSize`; ví dụ `pageSize=10` có ghi chú "các giá trị 1, 10 và 100 là cấu hình giả định… nhóm tự công bố kích thước trang và giới hạn phù hợp".
+- Plan 10.12 công bố thực đơn 12, admin 20, tối đa 100. 12 chia hết cho 1/2/3 cột → lưới luôn đầy hàng.
+- Đề chỉ bắt API trả `total`, không bắt giao diện hiện số.
+
+**Nhóm chốt:**
+- bỏ mọi số đếm ở trang khách (kể cả khi tìm/lọc);
+- chân trang "© 2026 Nhà hàng · Món Việt ba miền";
+- slogan "Ăn một bữa, đi trọn ba miền";
+- admin giữ nguyên.
+
+**Đã làm:**
+- `MenuHero`: dòng nhỏ chỉ còn "Thực đơn" (bỏ "· 1.200 món", bỏ prop `total`); slogan + giới thiệu mới, chỉ nhắc món có thật trong seed (Bún chả Hà Nội — "chả nướng than hoa", Mì Quảng — "bánh tráng nướng", Cá kho tộ).
+- `DishListPage`:
+  - thanh công cụ không còn số: chưa tìm/lọc thì trống; có thì "Kết quả cho “q”" / "Kết quả theo bộ lọc" (+ "· xếp theo độ phù hợp") + Xoá bộ lọc, vẫn là vùng `role=status`;
+  - bỏ "Trang x/y" ở dòng kết quả và dòng "Món a–b trong N món" dưới lưới.
+- `LoadMore`: bỏ "Đã hiện N/total món"; hết danh sách → "Bạn đã xem hết danh sách."
+- `Layout`: chân trang mới. CSS: xoá `.result-total`, `.result-page`, `.load-count`.
+- **Giữ có chủ ý** (ghi trong plan 13.4):
+  - số món trên nút danh mục (13.c);
+  - điểm phù hợp ở toàn văn / gần đúng;
+  - "Trang N không có món nào" khi URL vượt phạm vi;
+  - "Trang 1/100" của thanh phân trang rút gọn trên điện thoại (là điều hướng, không phải dòng đếm);
+  - dòng đếm ở admin.
+- Tài liệu:
+  - `kichban.html`: các câu "Thấy được" không còn dựa vào dòng đếm — dùng tên món (id 13 Bánh xèo miền Tây, id 1200 Gà xào kim chi), số thẻ, Network `total`;
+  - `hotrotrinhbay.html`: câu hết danh sách;
+  - `evidence/screens/`: chụp lại 11 ảnh thực đơn; `evidence/README.md` ghi chú.
+
+**Đã kiểm tra** (Chrome headless, **14/14 đạt**):
+- `/dishes`:
+  - slogan, giới thiệu, chân trang mới;
+  - không còn chữ nào dạng "N món", "a/b", "trong N", "Trang N" ngoài nút danh mục / thanh phân trang / thẻ món;
+  - không còn `.page-summary`; dòng kết quả trống; thanh phân trang vẫn có.
+- Dòng kết quả theo điều kiện:
+  - `?q=phở` → "Kết quả cho “phở”" + Xoá bộ lọc;
+  - `?tag=9` → "Kết quả theo bộ lọc";
+  - toàn văn "cá kho tộ" → "… · xếp theo độ phù hợp", điểm vẫn hiện.
+- Tải thêm Lẩu tới hết → 61 thẻ + "Bạn đã xem hết danh sách."
+- Giữ có chủ ý: `?page=101` vẫn "Trang 101 không có món nào."; admin vẫn "Món 1–20 trong 1200 món".
+- 375px không cuộn ngang. Không lỗi console. `vite build` thành công.
+- Chạy lại gom id qua 3 kiểu UI (`mode=advanced&tag=12&sort=gia-tang`): **386/386** cả 3 kiểu (cách nhận biết hết danh sách đổi chữ nhưng vẫn là `.load-end`).

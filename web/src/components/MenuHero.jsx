@@ -6,7 +6,7 @@ import DishImage from "./DishImage.jsx";
 // - còn lại (đang tìm / lọc / sắp xếp, hoặc page ≥ 2) → thu gọn: tiêu đề nhỏ + khung tìm, kết quả lên gần đầu màn hình.
 // Ảnh ghép lấy 3 món CÓ ẢNH đầu tiên trong chính danh sách vừa tải (13.d): không thêm request, không ghi cứng link ảnh.
 // Mỗi ảnh là link tới trang chi tiết, nơi có dòng ghi công ảnh (giấy phép CC).
-export default function MenuHero({ full, total, dishes, loading, children }) {
+export default function MenuHero({ full, dishes, loading, children }) {
   if (!full) {
     return (
       <section className="menu-hero compact" aria-labelledby="menu-title">
@@ -18,14 +18,14 @@ export default function MenuHero({ full, total, dishes, loading, children }) {
   return (
     <section className="menu-hero" aria-labelledby="menu-title">
       <div className="hero-text">
-        {/* total chỉ có sau khi danh sách tải xong (13.e: không gọi thêm API chỉ để đếm). */}
-        <p className="hero-eyebrow">Thực đơn{total !== null && ` · ${total.toLocaleString("vi-VN")} món`}</p>
+        {/* Trang khách không hiện số đếm (plan 13.4). Lời giới thiệu chỉ nhắc món có thật trong thực đơn (seed). */}
+        <p className="hero-eyebrow">Thực đơn</p>
         <h1 id="menu-title">
-          Món Việt ba miền,
+          Ăn một bữa,
           <br />
-          nấu mới mỗi ngày
+          đi trọn ba miền
         </h1>
-        <p className="hero-lead">Phở, bún, cơm, lẩu và đồ uống. Tìm theo tên món, lọc theo loại, khoảng giá hoặc tình trạng.</p>
+        <p className="hero-lead">Bún chả Hà Nội khói than hoa, mì Quảng vàng ươm bánh tráng nướng, cá kho tộ đậm đà miền Tây — mỗi món là một vùng đất trên bàn ăn của bạn.</p>
         {children}
       </div>
       <HeroPhotos dishes={dishes} loading={loading} />

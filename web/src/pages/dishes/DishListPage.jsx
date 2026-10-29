@@ -34,11 +34,11 @@ export default function DishListPage() {
 // Đầu trang (có khung tìm) + thanh danh mục: dùng chung cho cả 3 cách hiển thị (plan mục 13).
 // Đầu trang đầy đủ chỉ ở trang 1 khi chưa có điều kiện; có từ khoá / bộ lọc / sắp xếp hoặc page ≥ 2 → thu gọn.
 // dishes, loading: danh sách đang hiện → ảnh ghép của đầu trang (13.d), không gọi thêm API.
-function MenuHead({ query, tagList, fieldErrors, onApply, total, dishes, loading }) {
+function MenuHead({ query, tagList, fieldErrors, onApply, dishes, loading }) {
   const full = !isFiltered(query) && (query.page === "" || query.page === "1");
   return (
     <>
-      <MenuHero full={full} total={total} dishes={dishes} loading={loading}>
+      <MenuHero full={full} dishes={dishes} loading={loading}>
         <SearchPanel query={query} tags={tagList} fieldErrors={fieldErrors} onApply={onApply} />
       </MenuHero>
       <CategoryBar tags={tagList} query={query} />
@@ -60,22 +60,20 @@ function useMenuBase() {
   return { query, searchParams, tagList, apply, clearUrl, needsQ };
 }
 
-// Thanh công cụ trên danh sách: dòng "N món khớp điều kiện cho “…”" + Xoá bộ lọc (bên trái);
-// công tắc cách hiển thị + ô sắp xếp (bên phải, 13.g). Dòng kết quả chỉ có số khi response đã về (total ≠ null).
+// Thanh công cụ trên danh sách: dòng kết quả + Xoá bộ lọc (bên trái); công tắc cách hiển thị + ô sắp xếp (bên phải, 13.g).
+// Trang khách không hiện số đếm (plan 13.4): chỉ khi đang tìm/lọc mới có dòng chữ "Kết quả cho “…”", và chỉ sau khi
+// response đã về (`total` ≠ null) — vùng role=status để trình đọc màn hình biết danh sách vừa đổi.
 // Ô sắp xếp áp dụng ngay trên bộ điều kiện ĐÃ ÁP DỤNG (URL), về trang 1; toàn văn / gần đúng xếp theo điểm → khoá ô.
-function MenuToolbar({ query, total, pageInfo, clearUrl, onApply, fieldErrors }) {
+function MenuToolbar({ query, total, clearUrl, onApply, fieldErrors }) {
   const viewHref = (v) => `/dishes${toQuery(toPageParams({ ...query, view: v, page: "" }))}`;
   const isText = TEXT_MODES.includes(query.mode);
   return (
     <div className="menu-toolbar">
       <div className="result-line" role="status" aria-live="polite">
-        {total !== null && (
+        {total !== null && isFiltered(query) && (
           <span>
-            <strong className="result-total">{total.toLocaleString("vi-VN")} món</strong>
-            {isFiltered(query) ? " khớp điều kiện" : ""}
-            {query.q && <> cho “{query.q}”</>}
+            {query.q ? <>Kết quả cho “{query.q}”</> : "Kết quả theo bộ lọc"}
             {isText && total > 0 && " · xếp theo độ phù hợp"}
-            {pageInfo && <span className="result-page"> · {pageInfo}</span>}
           </span>
         )}
         {isFiltered(query) && <Link to={clearUrl}>Xoá bộ lọc</Link>}
@@ -150,7 +148,7 @@ function AppendMenu({ infinite }) {
 
   return (
     <>
-      <MenuHead query={query} tagList={tagList} fieldErrors={fieldErrors} onApply={apply} total={list.total} dishes={list.items} loading={firstLoad && list.pending} />
+      <MenuHead query={query} tagList={tagList} fieldErrors={fieldErrors} onApply={apply} dishes={list.items} loading={firstLoad && list.pending} />
       <MenuToolbar query={query} total={list.total} clearUrl={clearUrl} onApply={apply} fieldErrors={fieldErrors} />
       {invalid && <InvalidQuery fields={list.error.fields} resetTo={clearUrl} resetLabel="Xoá bộ lọc" />}
       {!invalid && firstLoad && list.pending && <SkeletonList />}
@@ -163,7 +161,7 @@ function AppendMenu({ infinite }) {
             <>
               <DishGrid dishes={list.items} appearFrom={PAGE_SIZE} />
               {infinite && <InfiniteSentinel onVisible={list.loadNext} disabled={list.end || Boolean(list.error)} itemCount={list.items.length} />}
-              <LoadMore pending={list.pending} end={list.end} error={list.error} shown={list.items.length} total={list.total} onLoad={list.loadNext} />
+              <LoadMore pending={list.pending} end={list.end} error={list.error} onLoad={list.loadNext} />
             </>
           )}
         </>
@@ -193,12 +191,12 @@ function PagedMenu() {
 
   return (
     <>
-      <MenuHead query={query} tagList={tagList} fieldErrors={fieldErrors} onApply={apply} total={data?.total ?? null} dishes={dishes} loading={list.status === "loading"} />
+      <MenuHead query={query} tagList={tagList} fieldErrors={fieldErrors} onApply={apply} dishes={dishes} loading={list.status === "loading"} />
 
       <div ref={listTopRef} className="list-anchor" tabIndex={-1}>
         <span className="sr-only">Danh sách món, trang {query.page || 1}</span>
       </div>
-      <MenuToolbar query={query} total={data?.total ?? null} pageInfo={data && dishes.length > 0 ? `Trang ${data.page}/${totalPages}` : null} clearUrl={clearUrl} onApply={apply} fieldErrors={fieldErrors} />
+      <MenuToolbar query={query} total={data?.total ?? null} clearUrl={clearUrl} onApply={apply} fieldErrors={fieldErrors} />
       {list.status === "loading" && <SkeletonList />}
       {invalid && <InvalidQuery fields={list.error.fields} resetTo={clearUrl} resetLabel="Xoá bộ lọc" />}
       {list.status === "error" && !invalid && <LoadError onRetry={list.reload} />}
@@ -215,9 +213,6 @@ function PagedMenu() {
           ) : (
             <>
               <DishGrid dishes={dishes} />
-              <p className="muted page-summary">
-                Món {(data.page - 1) * data.pageSize + 1}–{(data.page - 1) * data.pageSize + dishes.length} trong {data.total} món
-              </p>
               <Pagination page={data.page} totalPages={totalPages} hrefFor={hrefFor} label="Phân trang thực đơn" />
             </>
           )}
