@@ -94,7 +94,7 @@ export default function AdminDishListPage() {
                     {d.id}
                   </td>
                   <td className="thumb" data-label="Ảnh">
-                    <DishImage className="table-thumb" src={d.imageUrl} loading="lazy" emptyText="—" />
+                    <DishImage className="table-thumb" src={d.imageUrl} loading="lazy" tags={d.tags} />
                   </td>
                   {/* Tên món mở form sửa: admin ở lại khu Quản trị (trước đây dẫn ra trang người dùng). */}
                   <td className="title" data-label="Tên">

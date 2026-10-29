@@ -16,6 +16,11 @@
   --danger: #b3261e;
   --danger-soft: #fbe9e7;
   --radius: 10px;
+  /* Nền + nét của hình minh hoạ món chưa có ảnh, theo nhóm loại món (plan mục 13, bản phác Figma). */
+  --art-nuoc-bg: #e3eef0; --art-nuoc-ink: #2d5d66;
+  --art-com-bg: #edf0e1;  --art-com-ink: #4d5b26;
+  --art-xanh-bg: #e6f0eb; --art-xanh-ink: #1f5b43;
+  --art-uong-bg: #eceaf2; --art-uong-ink: #4f4a6b;
   --font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -284,7 +289,6 @@ td.actions .btn + .btn { margin-left: 6px; }
 /* Ảnh món: khung ảnh chi tiết không có lề mặc định của <figure>; khung "Chưa có ảnh" giữ đúng tỉ lệ ảnh. */
 .detail-photo { margin: 0; }
 .image-preview.no-photo { display: grid; height: auto; background: var(--surface-2); }
-.table-thumb.no-photo { display: grid; font-size: .8rem; }
 .price-line { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .normal { font-weight: 400; }
 .no-margin { margin: 0; }
@@ -342,8 +346,6 @@ tbody tr.just-saved { scroll-margin-block: 96px; }
 /* Chip là link (trang chi tiết): vùng chạm đủ lớn, viền đậm khi rê chuột. */
 a.tag-chip { min-height: 32px; padding: 0 12px; font-size: .85rem; }
 a.tag-chip:hover { border-color: var(--primary); color: var(--primary); text-decoration: none; }
-/* Món chưa có ảnh: khung ghi loại món. */
-.dish-thumb.no-photo { background: var(--primary-soft); color: var(--primary); font-weight: 600; font-size: .8rem; }
 /* Phân trang dạng số trang: Trước · 1 … 4 5 6 … 100 · Sau. Nút tối thiểu 44px để dễ chạm. */
 .pagination { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 20px 0 8px; }
 .page-list { display: flex; align-items: center; gap: 4px; list-style: none; margin: 0; padding: 0; }
@@ -468,3 +470,20 @@ a, .btn, .chip, .page-num, .page-btn, .view-btn, .choice, input, select, textare
   .skeleton-row { grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
   .skeleton-row .sk-price { display: none; }
 }
+
+/* ===== Giao diện mới của thực đơn (block7, plan mục 13) ===== */
+/* Hình minh hoạ cho món chưa có ảnh (DishArt): hình nét mảnh ở giữa, nền theo nhóm loại món.
+   Cỡ hình đặt theo từng nơi dùng (không dùng % trong lưới để tránh kích thước vòng). */
+.dish-art { display: grid; place-content: center; justify-items: center; gap: 8px; overflow: hidden; background: var(--art-bg); color: var(--art-ink); }
+.art-nuoc { --art-bg: var(--art-nuoc-bg); --art-ink: var(--art-nuoc-ink); }
+.art-com { --art-bg: var(--art-com-bg); --art-ink: var(--art-com-ink); }
+.art-xanh { --art-bg: var(--art-xanh-bg); --art-ink: var(--art-xanh-ink); }
+.art-uong { --art-bg: var(--art-uong-bg); --art-ink: var(--art-uong-ink); }
+.art-icon { display: block; width: 64px; height: auto; }
+.art-label { font-size: .85rem; font-weight: 600; }
+.dish-thumb .art-icon { width: 52px; }
+.table-thumb .art-icon { width: 28px; }
+/* Trang chi tiết: cùng khung 4:3 bo góc như ảnh thật, nhưng giữ nền màu nhóm (không dùng nền xám của ảnh). */
+.detail-photo .dish-art { width: 100%; aspect-ratio: 4 / 3; border-radius: var(--radius); }
+.detail-photo .art-icon { width: 128px; }
+.detail-photo .art-label { font-size: 1rem; }

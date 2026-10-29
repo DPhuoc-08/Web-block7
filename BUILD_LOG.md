@@ -601,3 +601,36 @@ Phương án bỏ:
 - Đo bằng hai cách (giả lập thiết bị và iframe 375px qua HTTP) đều ra cùng con số. Bản HEAD trước bước 21 cũng vậy → lỗi có từ bước 17, không phải do lần sửa này.
 - Bước 17 ghi "không cuộn ngang ở 375px" là **sai**.
 - Phần tràn: các khối `pre`/`code` dài (biểu thức full-text, sơ đồ quan hệ bảng, URL request mẫu).
+
+## Bước 22 — Hình minh hoạ theo loại món cho món chưa có ảnh (plan mục 13)
+**Bối cảnh (29/10/2026):** nhóm thấy giao diện "khô, cứng, thô" và chốt làm lại thực đơn theo bản phác Figma (https://www.figma.com/design/Hg0hZEkHTngeGGCh9yY2CK), plan mục 13, đủ 9 điểm 13.a–13.i. Đếm qua API: **956/1.200 món chưa có ảnh** → hiện ô màu phẳng ghi tên loại món, là nguyên nhân lớn nhất khiến trang trông thô.
+- Lúc góp ý ban đầu mình nói "chỉ khoảng 65 món có ảnh" là **sai**, vì chỉ lấy mẫu 3 trang.
+- Đếm lại đủ 12 trang × 100 món: 244 món có ảnh.
+
+**Đã làm:**
+- `components/DishArt.jsx` (mới):
+  - 11 hình nét mảnh theo loại món, vẽ lại từ bản Figma bằng phần tử SVG của JSX (không chèn HTML thô);
+  - chọn theo tag loại món đầu tiên của món; tag chưa có hình → hình đĩa chung (13.a);
+  - nền / nét theo 4 nhóm màu đã chốt;
+  - hình để `aria-hidden`; nhãn loại món là chữ (tuỳ chọn).
+- `DishImage`: không có ảnh hoặc ảnh lỗi + có `tags` → `DishArt`; không truyền `tags` (form xem trước ảnh) → khung chữ như cũ.
+  - Dùng ở thực đơn (`DishRow`, tạm thời tới bước 23), trang chi tiết (có nhãn) và ảnh nhỏ bảng admin (trước đây "—").
+- `style.css`:
+  - biến `--art-<nhóm>-bg/ink` trong `:root`; khung `.dish-art`; cỡ hình theo nơi dùng (52 / 28 / 128px);
+  - xoá 2 luật của ô chữ cũ không còn dùng (`.dish-thumb.no-photo`, `.table-thumb.no-photo`).
+
+**Quyết định:** cỡ hình đặt bằng px theo từng nơi dùng, không dùng % trong khung lưới (`place-content: center` + chiều rộng % dễ ra kích thước vòng / bằng 0).
+
+**Lỗi trong lúc làm:** trang chi tiết ra nền xám thay vì nền nhóm.
+- Nguyên nhân: luật cũ `.detail-photo img, .detail-photo .no-photo` (thêm `.dish-art` vào cùng luật) có `background: var(--surface-2)`, độ ưu tiên 2 class > `.dish-art`.
+- Sửa: tách luật riêng cho `.detail-photo .dish-art` (chỉ khung 4:3 + bo góc).
+- Kiểm tra lại: nền `rgb(237, 240, 225)` = `#edf0e1`.
+
+**Đã kiểm tra** (Chrome headless, Vite :5173, API :3000, **9/9 đạt**):
+- Thực đơn: món 7 (không ảnh) → khung minh hoạ nhóm `com`, 120px; món 1 vẫn là `<img>`.
+- Chi tiết món 7: nhãn "Món cơm", nền `#edf0e1`, nét `#4d5b26`, hình 128px, tỉ lệ 4:3, không có dòng ghi công ảnh.
+- Admin: ảnh nhỏ món 7 → minh hoạ 56×42, hình 28px.
+- Chặn `*wikimedia.org*` để giả lập ảnh lỗi → món 1 hiện minh hoạ "Món nước".
+- Form thêm món: link ảnh hỏng → ô xem trước vẫn ghi "Không tải được ảnh từ link này".
+- Không lỗi console (trừ lỗi tải ảnh bị chặn có chủ ý). `vite build` thành công.
+- Lần chạy đầu script dừng ở ca form: ô xem trước chỉ hiện khi đã nhập link http (script sai, không phải lỗi app) → script nhập link hỏng trước.

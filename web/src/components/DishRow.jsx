@@ -12,8 +12,8 @@ export default function DishRow({ dish, appear = false }) {
   const { pathname, search } = useLocation();
   return (
     <Link className={`dish-row${dish.available ? "" : " unavailable"}${appear ? " appear" : ""}`} to={`/dishes/${dish.id}`} state={{ backTo: pathname + search }}>
-      {/* Không có ảnh → khung ghi loại món (tag đầu tiên) thay vì để trống. */}
-      <DishImage className="dish-thumb" src={dish.imageUrl} alt={dish.name} loading="lazy" width="120" height="90" emptyText={dish.tags[0]?.name ?? "Chưa có ảnh"} />
+      {/* Không có ảnh → hình minh hoạ theo loại món (DishArt) thay vì để trống. */}
+      <DishImage className="dish-thumb" src={dish.imageUrl} alt={dish.name} loading="lazy" width="120" height="90" tags={dish.tags} />
       <span>
         <span className="dish-name">{dish.name}</span>
         {dish.description && <span className="dish-desc">{dish.description}</span>}

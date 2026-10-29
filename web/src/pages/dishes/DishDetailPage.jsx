@@ -34,7 +34,7 @@ export default function DishDetailPage() {
 
       <div className="detail">
         <figure className="detail-photo">
-          <DishImage src={dish.imageUrl} alt={dish.name} width="960" height="720" emptyText="Chưa có ảnh cho món này" />
+          <DishImage src={dish.imageUrl} alt={dish.name} width="960" height="720" tags={dish.tags} label />
           {/* CC BY / BY-SA yêu cầu ghi công tác giả và giấy phép. */}
           {dish.imageUrl && dish.imageCredit && <figcaption>Ảnh: {dish.imageCredit}</figcaption>}
         </figure>
