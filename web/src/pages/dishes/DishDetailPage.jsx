@@ -3,7 +3,7 @@ import { getDish } from "../../api/dishes.js";
 import { useLoad } from "../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle.js";
 import { Loading, LoadError, NotFoundMessage } from "../../components/StatusView.jsx";
-import { formatPrice, tagNames } from "../../format.js";
+import { formatMenuPrice, tagNames } from "../../format.js";
 import DishImage from "../../components/DishImage.jsx";
 import TagList from "../../components/TagList.jsx";
 
@@ -13,7 +13,7 @@ export default function DishDetailPage() {
   const { id } = useParams();
   // deps [id]: đổi sang món khác khi request cũ chưa về → useLoad huỷ request cũ.
   const { status, data: dish, reload } = useLoad((signal) => getDish(id, { signal }), [id]);
-  // Quay lại đúng danh sách đang lọc (DishRow gửi qua state của Link, giữ cả khi Reload).
+  // Quay lại đúng danh sách đang lọc (DishCard gửi qua state của Link, giữ cả khi Reload).
   // Mở thẳng / tab mới thì không có state → /dishes. Chỉ nhận URL của thực đơn.
   const backTo = useLocation().state?.backTo;
   const backUrl = typeof backTo === "string" && /^\/dishes(\?|$)/.test(backTo) ? backTo : "/dishes";
@@ -44,7 +44,7 @@ export default function DishDetailPage() {
           <TagList tags={dish.tags} linked />
           <h1>{dish.name}</h1>
           <div className="price-line">
-            <span className="detail-price">{formatPrice(dish.price)}</span>
+            <span className={`detail-price${dish.price === 0 ? " free" : ""}`}>{formatMenuPrice(dish.price)}</span>
             {dish.available ? <span className="badge on">Đang phục vụ</span> : <span className="badge off">Tạm hết</span>}
           </div>
           <p className="detail-desc">{dish.description ?? "Chưa có mô tả cho món này."}</p>

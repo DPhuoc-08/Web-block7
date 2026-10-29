@@ -6,7 +6,7 @@ import { isBusiness, toQuery } from "../../api/client.js";
 import { useLoad } from "../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle.js";
 import { SkeletonList, LoadError, InvalidQuery } from "../../components/StatusView.jsx";
-import DishRow from "../../components/DishRow.jsx";
+import DishCard from "../../components/DishCard.jsx";
 import SearchPanel from "../../components/SearchPanel.jsx";
 import Pagination from "../../components/Pagination.jsx";
 import ViewSwitch from "../../components/ViewSwitch.jsx";
@@ -92,9 +92,9 @@ function DishGrid({ dishes, appearFrom = Infinity }) {
   return (
     <section className="menu-group">
       <h2 className="sr-only">Kết quả</h2>
-      <div className="menu-grid flat">
+      <div className="menu-cards">
         {dishes.map((dish, i) => (
-          <DishRow key={dish.id} dish={dish} appear={i >= appearFrom} />
+          <DishCard key={dish.id} dish={dish} appear={i >= appearFrom} />
         ))}
       </div>
     </section>

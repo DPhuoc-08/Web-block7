@@ -7,3 +7,6 @@ export const plain = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/
 
 // Tên các tag nối bằng dấu chấm giữa: "Món nước · Miền Bắc".
 export const tagNames = (tags) => tags.map((t) => t.name).join(" · ");
+
+// Giá ở thực đơn và trang chi tiết (plan 13.h): món 0đ (trà đá, đá viên tặng kèm) ghi "Miễn phí". Admin vẫn dùng formatPrice.
+export const formatMenuPrice = (price) => (price === 0 ? "Miễn phí" : formatPrice(price));

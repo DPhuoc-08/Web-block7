@@ -634,3 +634,36 @@ Phương án bỏ:
 - Form thêm món: link ảnh hỏng → ô xem trước vẫn ghi "Không tải được ảnh từ link này".
 - Không lỗi console (trừ lỗi tải ảnh bị chặn có chủ ý). `vite build` thành công.
 - Lần chạy đầu script dừng ở ca form: ô xem trước chỉ hiện khi đã nhập link http (script sai, không phải lỗi app) → script nhập link hỏng trước.
+
+## Bước 23 — Thẻ món dạng lưới (plan mục 13, 13.h, 13.i)
+**Đã làm:**
+- `components/DishCard.jsx` thay `DishRow.jsx` (đã xoá). Một component cho mọi cỡ màn hình:
+  - khung ảnh 3:2 (ảnh thật hoặc minh hoạ có nhãn loại món);
+  - tên + giá cùng dòng; mô tả 2 dòng;
+  - tag đầu (loại món) là chip, các tag còn lại ghi bằng chữ (`Miền Nam · Món chay`);
+  - điểm phù hợp giữ nguyên cho toàn văn / gần đúng.
+- Tạm hết: lớp trắng 55% phủ ảnh + nhãn "Tạm hết" góc trên, giá màu nhạt. Bỏ kiểu cũ (ảnh xám + giá gạch ngang + badge đỏ).
+- `format.js` → `formatMenuPrice`: giá 0 → "Miễn phí" (màu nhấn) ở thẻ món và trang chi tiết. Admin vẫn `formatPrice` → "0đ" (13.h).
+- `style.css`:
+  - `.menu-cards` 3 cột (≥ 1024px), 2 cột (601–1023px);
+  - ≤ 600px: dòng món ảnh 96px — `.card-title { display: contents }` + `order` để xếp tên → mô tả → giá + chip cùng hàng; ẩn tag phụ dạng chữ;
+  - bỏ đường kẻ giữa món, khoảng cách 44px / 24px;
+  - hiệu ứng nổi khi rê chuột chuyển sang khung ảnh; hiệu ứng hiện dần dùng cho `.dish-card.appear`;
+  - khung xương thực đơn đổi thành dạng thẻ (vẫn 12 ô = một trang, giữ lý do của bước 15);
+  - xoá CSS không còn dùng (`dish-row`, `dish-thumb`, `menu-columns`, `menu-grid`).
+
+**Phương án đã bỏ:** hai component riêng cho máy tính và điện thoại → trùng logic, lệch nhau khi sửa.
+
+**Lưu ý khi kiểm tra:** lần chạy đầu báo 1 lỗi console `[vite] Failed to reload /src/components/DishRow.jsx`.
+- Nguyên nhân: thông báo HMR của server Vite dev, do file bị xoá trong lúc server vẫn giữ module cũ — không phải lỗi app.
+- Chạy lại khi không có file nào đổi giữa chừng: không còn lỗi.
+- Không kiểm bằng `vite preview` được: API chỉ cho CORS từ `localhost:5173`, mà cổng này đang là Vite dev của người dùng.
+
+**Đã kiểm tra** (Chrome headless, **13/13 đạt**):
+- Số trang: 12 thẻ id 1–12, 3 cột; thẻ 1 ảnh 344×229, "Phở bò tái" / "55.000đ" / chip "Món nước" / "Miền Bắc"; không còn đường kẻ.
+- Trang 2: thẻ tạm hết có nhãn, lớp `rgba(255,255,255,.55)`, giá `#5f5b55`, không gạch ngang.
+- Trang 25: Trà đá (#300) "Miễn phí" + minh hoạ "Đồ uống" nhóm `uong`; trang chi tiết #300 "Miễn phí".
+- Tải thêm: 24 thẻ id 1–24, chỉ 12 thẻ mới có class `appear`.
+- Cuộn vô hạn: cuộn 3 lần → 48 thẻ id 1–48 liên tục.
+- 820px: 2 cột; 375px: 1 cột, ảnh 96px, tên → mô tả → giá + chip cùng hàng. Không cuộn ngang ở cả hai.
+- Không lỗi console. `vite build` thành công.

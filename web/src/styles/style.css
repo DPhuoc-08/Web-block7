@@ -96,26 +96,29 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
 .chip[aria-current="true"] { background: var(--text); border-color: var(--text); color: #fff; }
 .result-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 20px 0 4px; color: var(--muted); font-size: .95rem; }
 
-/* Các nhóm loại món chảy thành 2 cột (1 cột trên màn hình hẹp); mỗi nhóm không bị cắt ngang cột. */
-.menu-columns { columns: 2 440px; column-gap: 48px; }
-.menu-columns .menu-group { break-inside: avoid; }
-.menu-group { padding-top: 28px; }
-.menu-group h2 { font-size: 1.35rem; font-weight: 700; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 10px; }
-.menu-group h2 small { font-size: .85rem; font-weight: 500; color: var(--muted); }
-.menu-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
-.menu-grid.flat { grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); column-gap: 48px; }
-
-.dish-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); color: var(--text); }
-.dish-row:hover { text-decoration: none; color: var(--text); }
-.dish-row:hover .dish-name { color: var(--primary); text-decoration: underline; }
-.dish-thumb { width: 120px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--surface-2); }
+/* Thẻ món dạng lưới (block7, plan mục 13): 3 cột ≥ 1024px, 2 cột 601–1023px, dòng món ≤ 600px (cuối file).
+   Không kẻ đường giữa các món: khoảng trắng 44px / 24px tách thẻ. */
+.menu-group { padding-top: 16px; }
+.menu-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px 24px; }
+.dish-card { display: grid; gap: 14px; align-content: start; color: var(--text); }
+.dish-card:hover { color: var(--text); text-decoration: none; }
+.dish-card:hover .dish-name { color: var(--primary); text-decoration: underline; }
+.card-media { position: relative; display: block; aspect-ratio: 3 / 2; border-radius: 14px; overflow: hidden; background: var(--surface-2); }
+.card-img { width: 100%; height: 100%; object-fit: cover; }
+.card-img .art-icon { width: 80px; }
+/* Tạm hết: lớp trắng mờ phủ ảnh + nhãn đậm góc trên (thay cho ảnh xám + giá gạch ngang). */
+.dish-card.unavailable .card-media::after { content: ""; position: absolute; inset: 0; background: rgb(255 255 255 / .55); }
+.sold-badge { position: absolute; top: 12px; left: 12px; z-index: 1; padding: 4px 12px; border-radius: 999px; background: var(--text); color: #fff; font-size: .8rem; font-weight: 600; }
+.card-body { display: grid; gap: 6px; }
+.card-title { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
 .no-photo { display: grid; place-items: center; color: var(--muted); font-size: .75rem; text-align: center; padding: 4px; }
-.dish-name { font-weight: 600; font-size: 1.05rem; }
-.dish-desc { margin: 4px 0 0; color: var(--muted); font-size: .9rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.dish-meta { margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.dish-price { font-weight: 700; font-size: 1.05rem; white-space: nowrap; }
-.dish-row.unavailable .dish-thumb { filter: grayscale(1); opacity: .6; }
-.dish-row.unavailable .dish-price { color: var(--muted); text-decoration: line-through; }
+.dish-name { font-weight: 600; font-size: 1.125rem; line-height: 1.45; }
+.dish-desc { color: var(--muted); font-size: .875rem; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dish-meta { padding-top: 4px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.meta-text { font-size: .82rem; color: var(--muted); }
+.dish-price { font-weight: 700; font-size: 1.06rem; white-space: nowrap; color: var(--primary-dark); }
+.dish-price.free, .detail-price.free { color: var(--primary); }
+.dish-card.unavailable .dish-price { color: var(--muted); }
 
 .empty { text-align: center; padding: 48px 20px; color: var(--muted); }
 .empty strong { display: block; color: var(--text); font-size: 1.1rem; margin-bottom: 6px; }
@@ -263,9 +266,6 @@ td.actions .btn + .btn { margin-left: 6px; }
   .filter-row .field.grow { grid-column: 1 / -1; }
   .filter-row .btn { width: 100%; }
 
-  .dish-row { grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
-  .dish-thumb { width: 88px; }
-  .dish-row .dish-price { grid-column: 2; }
   .detail-info h1 { font-size: 1.85rem; }
   .detail-price { font-size: 1.5rem; }
 
@@ -412,21 +412,21 @@ a.tag-chip:hover { border-color: var(--primary); color: var(--primary); text-dec
 a, .btn, .chip, .page-num, .page-btn, .view-btn, .choice, input, select, textarea, tbody tr, tbody td {
   transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
-/* Thẻ món: nổi nhẹ + bóng khi rê chuột. Đệm ngang 12px bù bằng lề âm → chữ vẫn thẳng hàng như cũ, bóng có chỗ thở.
+/* Thẻ món: ảnh nổi nhẹ + bóng khi rê chuột (chỉ khung ảnh, chữ đứng yên).
    Chỉ trên thiết bị có chuột (hover: hover): màn hình cảm ứng không bị "kẹt" trạng thái nổi sau khi chạm. */
-.dish-row { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.card-media { transition: transform .2s ease, box-shadow .2s ease; }
 @media (hover: hover) {
-  .dish-row { padding-inline: 12px; margin-inline: -12px; }
-  /* Bo góc chỉ khi nổi (đường kẻ dưới đã trong suốt): bo sẵn ở trạng thái thường làm đường kẻ dưới cong lên ở hai đầu. */
-  .dish-row:hover { border-radius: var(--radius); transform: translateY(-2px); box-shadow: 0 8px 22px rgb(29 28 26 / .09); border-bottom-color: transparent; }
+  .dish-card:hover .card-media { transform: translateY(-3px); box-shadow: 0 10px 24px rgb(29 28 26 / .12); }
 }
-/* Món vừa nối (Tải thêm / Cuộn vô hạn): mờ → rõ, trượt lên 8px. Không giữ trạng thái cuối (không fill-mode)
-   để hiệu ứng nổi khi rê chuột vẫn dùng được transform sau khi xong. */
-.dish-row.appear { animation: appear .25s ease-out; }
+/* Món vừa nối (Tải thêm / Cuộn vô hạn): mờ → rõ, trượt lên 8px. Không giữ trạng thái cuối (không fill-mode). */
+.dish-card.appear { animation: appear .25s ease-out; }
 @keyframes appear { from { opacity: 0; transform: translateY(8px); } }
 /* Khung xương: thanh xám + một dải sáng mờ lướt qua (gradient nhẹ duy nhất của trang, chạy bằng transform). */
 .skeleton-list { padding-top: 28px; }
-.skeleton-list.menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); column-gap: 48px; }
+.skeleton-list.menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px 24px; padding-top: 16px; }
+.skeleton-list.menu .skeleton-row { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 0; border: 0; align-items: start; }
+.skeleton-list.menu .sk-thumb { aspect-ratio: 3 / 2; border-radius: 14px; }
+.skeleton-list.menu .sk-price { display: none; }
 .skeleton-list.table { padding: 4px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 .skeleton-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 72px; gap: 16px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
 .skeleton-list.table .skeleton-row { grid-template-columns: 56px minmax(0, 1fr) 96px; padding: 10px 0; }
@@ -447,7 +447,7 @@ a, .btn, .chip, .page-num, .page-btn, .view-btn, .choice, input, select, textare
 .list-anchor:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition-property: color, background-color, border-color, box-shadow !important; }
-  .dish-row:hover { transform: none; }
+  .dish-card:hover .card-media { transform: none; }
 }
 
 /* ===== Responsive + vùng chạm (block7, bước 15) ===== */
@@ -463,7 +463,7 @@ a, .btn, .chip, .page-num, .page-btn, .view-btn, .choice, input, select, textare
   .table-wrap td.title a { display: inline-flex; align-items: center; min-height: 44px; }
   .skeleton-list.table { padding: 4px 12px; }
 }
-/* Điện thoại: chip lọc tag và chip tag ở trang chi tiết cao 44px cho dễ chạm; khung xương theo bố cục thẻ 88px. */
+/* Điện thoại: chip lọc tag và chip tag ở trang chi tiết cao 44px cho dễ chạm; khung xương bảng admin theo thẻ 88px. */
 @media (max-width: 600px) {
   .chip, a.tag-chip { min-height: 44px; }
   .result-line a { display: inline-flex; align-items: center; min-height: 44px; }
@@ -481,9 +481,32 @@ a, .btn, .chip, .page-num, .page-btn, .view-btn, .choice, input, select, textare
 .art-uong { --art-bg: var(--art-uong-bg); --art-ink: var(--art-uong-ink); }
 .art-icon { display: block; width: 64px; height: auto; }
 .art-label { font-size: .85rem; font-weight: 600; }
-.dish-thumb .art-icon { width: 52px; }
 .table-thumb .art-icon { width: 28px; }
 /* Trang chi tiết: cùng khung 4:3 bo góc như ảnh thật, nhưng giữ nền màu nhóm (không dùng nền xám của ảnh). */
 .detail-photo .dish-art { width: 100%; aspect-ratio: 4 / 3; border-radius: var(--radius); }
 .detail-photo .art-icon { width: 128px; }
 .detail-photo .art-label { font-size: 1rem; }
+/* Thẻ món theo cỡ màn hình (13.i). */
+@media (max-width: 1023px) {
+  .menu-cards, .skeleton-list.menu { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Điện thoại: thẻ thành dòng — ảnh vuông 96px bên trái; tên, mô tả 2 dòng, rồi giá + chip loại cùng hàng.
+   .card-title display: contents → tên và giá thành ô lưới của .card-body; `order` xếp lại thứ tự hiển thị. */
+@media (max-width: 600px) {
+  .menu-cards { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .dish-card { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; }
+  .card-media { aspect-ratio: 1; border-radius: 12px; }
+  .card-img .art-icon { width: 52px; }
+  .card-img .art-label { display: none; }
+  .sold-badge { top: 6px; left: 6px; padding: 2px 8px; font-size: .7rem; }
+  .card-title { display: contents; }
+  .card-body { grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 4px; align-items: center; align-content: start; }
+  .dish-name { order: 1; grid-column: 1 / -1; font-size: 1rem; }
+  .dish-desc { order: 2; grid-column: 1 / -1; font-size: .82rem; }
+  .dish-price { order: 3; font-size: .95rem; }
+  .dish-meta { order: 4; padding-top: 0; }
+  .meta-text { display: none; }
+  .skeleton-list.menu { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .skeleton-list.menu .skeleton-row { grid-template-columns: 96px minmax(0, 1fr); }
+  .skeleton-list.menu .sk-thumb { aspect-ratio: 1; border-radius: 12px; }
+}
