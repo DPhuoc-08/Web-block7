@@ -9,6 +9,7 @@ import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges.js";
 import LeaveConfirm from "../../../components/LeaveConfirm.jsx";
 import { Loading, LoadError, NotFoundMessage } from "../../../components/StatusView.jsx";
 import { FieldError, FormAlert, generalMessage } from "../../../components/FormBits.jsx";
+import { useBackTo, withFlash } from "../../../hooks/useBackTo.js";
 
 // Form thêm (/admin/ingredients/new) và sửa (/admin/ingredients/:id/edit) nguyên liệu. Cùng khuôn với ChefFormPage.
 export default function IngredientFormPage() {
@@ -33,6 +34,8 @@ export default function IngredientFormPage() {
 function IngredientForm({ id, ingredient }) {
   const isEdit = id !== undefined;
   const navigate = useNavigate();
+  // URL danh sách đã mở (giữ page, q) — như DishFormPage.
+  const listUrl = useBackTo("/admin/ingredients");
   const [initial] = useState({ name: ingredient?.name ?? "", unit: ingredient?.unit ?? "" });
   const [values, setValues] = useState(initial);
   const { blocker, allowLeave } = useUnsavedChanges(values.name !== initial.name || values.unit !== initial.unit);
@@ -65,7 +68,8 @@ function IngredientForm({ id, ingredient }) {
     try {
       const saved = isEdit ? await updateIngredient(id, body) : await createIngredient(body);
       allowLeave(); // đã lưu → không hỏi "rời trang khi chưa lưu"
-      navigate(`/admin/ingredients?msg=${isEdit ? "ingredient-updated" : "ingredient-created"}&id=${saved.id}`);
+      // Sửa: về đúng trang đang xem, dòng vừa sửa được tô. Thêm: về trang 1 + thông báo (plan mục 12).
+      navigate(withFlash(isEdit ? listUrl : "/admin/ingredients", { msg: isEdit ? "ingredient-updated" : "ingredient-created", id: saved.id }));
     } catch (err) {
       if (isBusiness(err, "VALIDATION_FAILED")) setErrors(err.fields);
       else if (isBusiness(err, "NOT_FOUND")) setGeneralError("Nguyên liệu này không còn tồn tại (có thể vừa bị xoá ở nơi khác).");
@@ -78,7 +82,7 @@ function IngredientForm({ id, ingredient }) {
 
   return (
     <>
-      <Link className="back" to="/admin/ingredients">
+      <Link className="back" to={listUrl}>
         ← Danh sách nguyên liệu
       </Link>
       <div className="panel form-panel" ref={panelRef}>
@@ -101,7 +105,7 @@ function IngredientForm({ id, ingredient }) {
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "Đang lưu…" : isEdit ? "Lưu" : "Thêm"}
             </button>
-            <Link className="btn" to="/admin/ingredients">
+            <Link className="btn" to={listUrl}>
               Huỷ
             </Link>
           </div>

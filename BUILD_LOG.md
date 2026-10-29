@@ -526,3 +526,40 @@ Phương án bỏ:
 - `vite build` thành công. Seed lại sau khi test.
 
 **Trạng thái:** hai bảng admin đầu bếp, nguyên liệu chưa có số trang; admin món vẫn `moi-nhat` → bước 20.
+
+## Bước 20 — SPA: 3 bảng admin xếp id tăng dần, đầu bếp và nguyên liệu có số trang (plan mục 12)
+**Đã làm:**
+- `AdminDishListPage`: bỏ `sort: "moi-nhat"` → API xếp `id ASC` (mặc định); sửa comment.
+- `AdminChefListPage`, `AdminIngredientListPage`: viết lại theo khuôn `AdminDishListPage`:
+  - `q`, `page` trên URL, 20 dòng/trang, gửi `page` nguyên văn cho API;
+  - `Pagination`, dòng "Đầu bếp 21–40 trong 60 đầu bếp", số kết quả tìm = `total`;
+  - trang vượt phạm vi → "Trang N không có … nào" + "Về trang cuối";
+  - URL sai → `InvalidQuery`; khung xương khi tải; chuyển trang thì cuộn/focus về tiêu đề (`useListTop`).
+- Form + trang xoá đầu bếp, nguyên liệu: dùng `useBackTo` / `withFlash` như món. Link Sửa/Xoá/Thêm của bảng gửi `backTo` = URL đang xem.
+  - Sửa / xoá / Huỷ → về đúng URL danh sách (giữ `page`, `q`).
+  - Thêm → `/admin/<…>?msg=…-created&id=…` (trang 1 + thông báo, theo chốt).
+
+**Quyết định:** thêm mới không tô dòng, vì bản ghi mới ở trang cuối, không nằm trên trang 1. Không thêm link "xem bản ghi vừa thêm" (ngoài plan).
+
+**Đã kiểm tra** (Chrome headless, Vite :5173, **47/47 đạt**):
+- `/admin/dishes` → id 1–20, "Món 1–20 trong 1200 món", request `/api/dishes?pageSize=20` (không còn `moi-nhat`); `?page=60` → 1181–1200.
+- Đầu bếp / nguyên liệu (mỗi trang):
+  - 20 dòng id 1–20, request `?pageSize=20` (không `all=true`);
+  - "Sau" → `?page=2` id 21–40; trang cuối → 41–60 / 241–250;
+  - Back → trang 2, Forward → trang cuối;
+  - `?page=4` / `?page=14` → "Về trang cuối (3)" / "(13)"; `?page=0` → "Số trang phải là số nguyên dương.".
+- Tìm:
+  - `/admin/chefs?q=mai` → "Tìm thấy 6 kết quả", 6 dòng;
+  - `/admin/ingredients?q=%` → không có kết quả (trước bước 19: 250);
+  - `?q=a&page=2` → "Nguyên liệu 21–40 trong 76", link "Trước" giữ `q`.
+- Sửa không đổi dữ liệu, rồi Lưu:
+  - nguyên liệu #45 ở trang 3, đầu bếp #25 ở trang 2, món #41 ở trang 3 → URL giữ `page`, dòng được tô, đúng thông báo.
+- Thêm đầu bếp / nguyên liệu từ trang 2 → về trang 1 (id 1–20), "Đã thêm …", không dòng nào tô.
+  - Bản ghi mới nằm cuối trang 4 / 13.
+  - Xoá nó ở đó → về đúng `?page=4` / `?page=13` + "Đã xoá …" (trang 4 của đầu bếp nay trống → hiện "Về trang cuối").
+- Form thêm món vẫn đủ 60 đầu bếp. Không cuộn ngang ở 1280 / 820 / 375px. Không lỗi console.
+- `vite build` thành công. Seed lại sau khi test.
+- Lần chạy đầu 2 mục chưa đạt do script sai, không phải lỗi app:
+  - chọn "thịt" (chỉ 6 kết quả) cho ca trang 2;
+  - `a.matches()` nhận chữ không phải selector.
+  Đổi sang `q=a` (76 kết quả) và sửa hàm.

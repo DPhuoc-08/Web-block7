@@ -11,6 +11,7 @@ import LeaveConfirm from "../../../components/LeaveConfirm.jsx";
 import { Loading, LoadError, NotFoundMessage } from "../../../components/StatusView.jsx";
 import { FieldError, FormAlert, generalMessage } from "../../../components/FormBits.jsx";
 import TagPicker from "../../../components/TagPicker.jsx";
+import { useBackTo, withFlash } from "../../../hooks/useBackTo.js";
 
 // Form thêm (/admin/chefs/new) và sửa (/admin/chefs/:id/edit) đầu bếp. Cùng khuôn với DishFormPage.
 // Chuyên môn là danh sách tag (cùng bảng tag với loại món), bắt buộc ≥ 1 → trang tải thêm danh sách tag.
@@ -37,6 +38,8 @@ const snapshot = (v) => JSON.stringify({ ...v, tagIds: [...v.tagIds].sort((a, b)
 function ChefForm({ id, chef, tags }) {
   const isEdit = id !== undefined;
   const navigate = useNavigate();
+  // URL danh sách đã mở (giữ page, q) — như DishFormPage.
+  const listUrl = useBackTo("/admin/chefs");
   const [initial] = useState({ name: chef?.name ?? "", tagIds: chef?.tags.map((t) => t.id) ?? [] });
   const [values, setValues] = useState(initial);
   // Thứ tự tick tag không tính là thay đổi.
@@ -83,8 +86,9 @@ function ChefForm({ id, chef, tags }) {
     try {
       const saved = isEdit ? await updateChef(id, body) : await createChef(body);
       // Đầu bếp không có trang chi tiết → về danh sách (danh sách tự tải lại từ API).
+      // Sửa: về đúng trang đang xem, dòng vừa sửa được tô. Thêm: về trang 1 + thông báo (người mới ở trang cuối, plan mục 12).
       allowLeave(); // đã lưu → không hỏi "rời trang khi chưa lưu"
-      navigate(`/admin/chefs?msg=${isEdit ? "chef-updated" : "chef-created"}&id=${saved.id}`);
+      navigate(withFlash(isEdit ? listUrl : "/admin/chefs", { msg: isEdit ? "chef-updated" : "chef-created", id: saved.id }));
     } catch (err) {
       if (isBusiness(err, "VALIDATION_FAILED")) setErrors(err.fields);
       else if (isBusiness(err, "NOT_FOUND")) setGeneralError("Đầu bếp này không còn tồn tại (có thể vừa bị xoá ở nơi khác).");
@@ -97,7 +101,7 @@ function ChefForm({ id, chef, tags }) {
 
   return (
     <>
-      <Link className="back" to="/admin/chefs">
+      <Link className="back" to={listUrl}>
         ← Danh sách đầu bếp
       </Link>
       <div className="panel form-panel" ref={panelRef}>
@@ -117,7 +121,7 @@ function ChefForm({ id, chef, tags }) {
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "Đang lưu…" : isEdit ? "Lưu" : "Thêm"}
             </button>
-            <Link className="btn" to="/admin/chefs">
+            <Link className="btn" to={listUrl}>
               Huỷ
             </Link>
           </div>

@@ -6,6 +6,7 @@ import { useLoad } from "../../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
 import { Loading, LoadError, NotFoundMessage } from "../../../components/StatusView.jsx";
 import { FieldError, generalMessage } from "../../../components/FormBits.jsx";
+import { useBackTo, withFlash } from "../../../hooks/useBackTo.js";
 
 // Trang xác nhận xoá đầu bếp (/admin/chefs/:id/delete). Giữ quy tắc của block5 (khoá ngoại Restrict):
 // - không phụ trách món nào → nút Xoá
@@ -15,6 +16,8 @@ export default function ChefDeletePage() {
   const { id } = useParams();
   useDocumentTitle("Xoá đầu bếp");
   const navigate = useNavigate();
+  // Xoá xong / Huỷ: về đúng URL danh sách đã mở (giữ page, q) — như DishDeletePage.
+  const listUrl = useBackTo("/admin/chefs");
   const { status, data, reload } = useLoad((signal) => Promise.all([getChef(id, { signal }), listAllChefs({ signal })]), [id]);
   const [transferTo, setTransferTo] = useState("");
   const [fieldError, setFieldError] = useState(null);
@@ -49,7 +52,7 @@ export default function ChefDeletePage() {
     setSubmitting(true);
     try {
       await deleteChef(id, dishes.length > 0 ? transferTo : undefined);
-      navigate(`/admin/chefs?msg=${dishes.length > 0 ? "chef-transferred" : "chef-deleted"}`);
+      navigate(withFlash(listUrl, { msg: dishes.length > 0 ? "chef-transferred" : "chef-deleted" }));
     } catch (err) {
       if (isBusiness(err, "IN_USE")) {
         setBlockedDishes(err.dishes);
@@ -68,7 +71,7 @@ export default function ChefDeletePage() {
 
   return (
     <>
-      <Link className="back" to="/admin/chefs">
+      <Link className="back" to={listUrl}>
         ← Danh sách đầu bếp
       </Link>
       <div className="panel confirm">
@@ -86,7 +89,7 @@ export default function ChefDeletePage() {
               <button type="button" className="btn btn-danger" onClick={onDelete} disabled={submitting}>
                 {submitting ? "Đang xoá…" : "Xoá"}
               </button>
-              <Link className="btn" to="/admin/chefs">
+              <Link className="btn" to={listUrl}>
                 Huỷ
               </Link>
             </div>
@@ -110,7 +113,7 @@ export default function ChefDeletePage() {
                 <p className="muted">
                   Chưa có đầu bếp nào khác để nhận món. <Link to="/admin/chefs/new">Thêm đầu bếp mới</Link> trước.
                 </p>
-                <Link className="btn" to="/admin/chefs">
+                <Link className="btn" to={listUrl}>
                   Quay lại
                 </Link>
               </>
@@ -132,7 +135,7 @@ export default function ChefDeletePage() {
                   <button type="submit" className="btn btn-danger" disabled={submitting}>
                     {submitting ? "Đang xử lý…" : "Chuyển món và xoá đầu bếp"}
                   </button>
-                  <Link className="btn" to="/admin/chefs">
+                  <Link className="btn" to={listUrl}>
                     Huỷ
                   </Link>
                 </div>

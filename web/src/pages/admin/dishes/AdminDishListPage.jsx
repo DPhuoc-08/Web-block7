@@ -15,7 +15,8 @@ import DishImage from "../../../components/DishImage.jsx";
 const PAGE_SIZE = 20;
 
 // Danh sách quản trị món (/admin/dishes?q=&page=). Phân trang tại server: mỗi lần chỉ nhận 20 món của trang đang xem
-// (1.200 món tải một lần mất ~14s ở bước 5). Món mới nhất lên đầu → món vừa thêm luôn ở trang 1 và được tô.
+// (1.200 món tải một lần mất ~14s ở bước 5). Xếp id tăng dần (1 → 1200, plan mục 12): thứ tự cố định, sửa/xoá
+// không làm các món khác đổi trang. Thêm món xong về trang 1 + thông báo (món mới nằm ở trang cuối).
 // q, page nằm trên URL của trang: Reload, copy link, Back/Forward mở lại đúng trang và từ khoá.
 export default function AdminDishListPage() {
   useDocumentTitle("Quản trị món ăn");
@@ -26,7 +27,8 @@ export default function AdminDishListPage() {
   const rawPage = searchParams.get("page") ?? "";
   // Admin tìm cả tên món và tên tag (như admin block5 tìm cả loại); trang người dùng chỉ tìm theo tên.
   const { status, data, error, reload } = useLoad(
-    (signal) => listDishes({ q, searchIn: q ? "name,tag" : "", sort: "moi-nhat", page: rawPage, pageSize: PAGE_SIZE }, { signal }),
+    // Không gửi sort → API xếp id ASC (mặc định của /api/dishes).
+    (signal) => listDishes({ q, searchIn: q ? "name,tag" : "", page: rawPage, pageSize: PAGE_SIZE }, { signal }),
     [q, rawPage],
   );
   const { savedId, savedRowRef } = useJustSaved();

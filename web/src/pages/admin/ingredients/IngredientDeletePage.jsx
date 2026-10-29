@@ -6,6 +6,7 @@ import { useLoad } from "../../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
 import { Loading, LoadError, NotFoundMessage } from "../../../components/StatusView.jsx";
 import { generalMessage } from "../../../components/FormBits.jsx";
+import { useBackTo, withFlash } from "../../../hooks/useBackTo.js";
 
 // Trang xác nhận xoá nguyên liệu (/admin/ingredients/:id/delete). Giữ quy tắc của block5:
 // nguyên liệu đang được món nào dùng thì KHÔNG có nút Xoá — liệt kê các món để người dùng bỏ nguyên liệu trước.
@@ -14,6 +15,8 @@ export default function IngredientDeletePage() {
   const { id } = useParams();
   useDocumentTitle("Xoá nguyên liệu");
   const navigate = useNavigate();
+  // Xoá xong / Huỷ: về đúng URL danh sách đã mở (giữ page, q) — như DishDeletePage.
+  const listUrl = useBackTo("/admin/ingredients");
   const { status, data: ingredient, reload } = useLoad((signal) => getIngredient(id, { signal }), [id]);
   const [error, setError] = useState(null);
   // API trả IN_USE (món vừa được gán nguyên liệu ở nơi khác) → chuyển sang hiện danh sách món mới nhất.
@@ -38,7 +41,7 @@ export default function IngredientDeletePage() {
     setError(null);
     try {
       await deleteIngredient(id);
-      navigate("/admin/ingredients?msg=ingredient-deleted");
+      navigate(withFlash(listUrl, { msg: "ingredient-deleted" }));
     } catch (err) {
       if (isBusiness(err, "IN_USE")) {
         setBlockedDishes(err.dishes);
@@ -55,7 +58,7 @@ export default function IngredientDeletePage() {
 
   return (
     <>
-      <Link className="back" to="/admin/ingredients">
+      <Link className="back" to={listUrl}>
         ← Danh sách nguyên liệu
       </Link>
       <div className="panel confirm">
@@ -73,7 +76,7 @@ export default function IngredientDeletePage() {
               <button type="button" className="btn btn-danger" onClick={onDelete} disabled={submitting}>
                 {submitting ? "Đang xoá…" : "Xoá"}
               </button>
-              <Link className="btn" to="/admin/ingredients">
+              <Link className="btn" to={listUrl}>
                 Huỷ
               </Link>
             </div>
@@ -91,7 +94,7 @@ export default function IngredientDeletePage() {
                 </li>
               ))}
             </ul>
-            <Link className="btn" to="/admin/ingredients">
+            <Link className="btn" to={listUrl}>
               Quay lại
             </Link>
           </>
