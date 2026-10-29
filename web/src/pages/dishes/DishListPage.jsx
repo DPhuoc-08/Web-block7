@@ -10,11 +10,13 @@ import DishCard from "../../components/DishCard.jsx";
 import SearchPanel from "../../components/SearchPanel.jsx";
 import Pagination from "../../components/Pagination.jsx";
 import ViewSwitch from "../../components/ViewSwitch.jsx";
+import MenuHero from "../../components/MenuHero.jsx";
+import CategoryBar from "../../components/CategoryBar.jsx";
 import LoadMore from "../../components/LoadMore.jsx";
 import InfiniteSentinel from "../../components/InfiniteSentinel.jsx";
 import { useAppendList } from "../../hooks/useAppendList.js";
 import { useListTop } from "../../hooks/useListTop.js";
-import { readQuery, toApiParams, toPageParams, conditionKey, isFiltered, TEXT_MODES, PAGE_SIZE } from "../../listQuery.js";
+import { readQuery, toApiParams, toPageParams, conditionKey, isFiltered, TEXT_MODES, SORTS, PAGE_SIZE } from "../../listQuery.js";
 
 // Thực đơn (/dishes). Điều kiện tìm/lọc/sắp xếp nằm trên URL của TRANG (listQuery.js): Reload, copy link,
 // Back/Forward mở lại đúng điều kiện. Phân trang tại server cho cả 3 cách hiển thị (plan mục 0): mỗi request
@@ -29,17 +31,17 @@ export default function DishListPage() {
   return view === "pages" ? <PagedMenu /> : <AppendMenu key={view} infinite={view === "scroll"} />;
 }
 
-// Phần đầu trang + khung tìm + công tắc cách hiển thị: dùng chung cho cả 3 cách.
-function MenuHead({ query, tagList, fieldErrors, onApply }) {
-  const viewHref = (v) => `/dishes${toQuery(toPageParams({ ...query, view: v, page: "" }))}`;
+// Đầu trang (có khung tìm) + thanh danh mục: dùng chung cho cả 3 cách hiển thị (plan mục 13).
+// Đầu trang đầy đủ chỉ ở trang 1 khi chưa có điều kiện; có từ khoá / bộ lọc / sắp xếp hoặc page ≥ 2 → thu gọn.
+// dishes, loading: danh sách đang hiện → ảnh ghép của đầu trang (13.d), không gọi thêm API.
+function MenuHead({ query, tagList, fieldErrors, onApply, total, dishes, loading }) {
+  const full = !isFiltered(query) && (query.page === "" || query.page === "1");
   return (
     <>
-      <div className="page-head">
-        <h1>Thực đơn</h1>
-        <p>Tìm món theo tên, tag, khoảng giá; chọn món để xem mô tả, giá và tình trạng phục vụ.</p>
-      </div>
-      <SearchPanel query={query} tags={tagList} fieldErrors={fieldErrors} onApply={onApply} />
-      <ViewSwitch current={query.view} hrefFor={viewHref} />
+      <MenuHero full={full} total={total} dishes={dishes} loading={loading}>
+        <SearchPanel query={query} tags={tagList} fieldErrors={fieldErrors} onApply={onApply} />
+      </MenuHero>
+      <CategoryBar tags={tagList} query={query} />
     </>
   );
 }
@@ -58,16 +60,44 @@ function useMenuBase() {
   return { query, searchParams, tagList, apply, clearUrl, needsQ };
 }
 
-// Dòng "N món khớp điều kiện cho “…”" + Xoá bộ lọc; trạng thái rỗng (không có kết quả là thành công, không phải lỗi).
-function ResultLine({ query, total, clearUrl }) {
+// Thanh công cụ trên danh sách: dòng "N món khớp điều kiện cho “…”" + Xoá bộ lọc (bên trái);
+// công tắc cách hiển thị + ô sắp xếp (bên phải, 13.g). Dòng kết quả chỉ có số khi response đã về (total ≠ null).
+// Ô sắp xếp áp dụng ngay trên bộ điều kiện ĐÃ ÁP DỤNG (URL), về trang 1; toàn văn / gần đúng xếp theo điểm → khoá ô.
+function MenuToolbar({ query, total, pageInfo, clearUrl, onApply, fieldErrors }) {
+  const viewHref = (v) => `/dishes${toQuery(toPageParams({ ...query, view: v, page: "" }))}`;
+  const isText = TEXT_MODES.includes(query.mode);
   return (
-    <div className="result-line" role="status" aria-live="polite">
-      <span>
-        {total} món{isFiltered(query) ? " khớp điều kiện" : ""}
-        {query.q && <> cho “{query.q}”</>}
-        {TEXT_MODES.includes(query.mode) && total > 0 && " · xếp theo độ phù hợp"}
-      </span>
-      {isFiltered(query) && <Link to={clearUrl}>Xoá bộ lọc</Link>}
+    <div className="menu-toolbar">
+      <div className="result-line" role="status" aria-live="polite">
+        {total !== null && (
+          <span>
+            <strong className="result-total">{total.toLocaleString("vi-VN")} món</strong>
+            {isFiltered(query) ? " khớp điều kiện" : ""}
+            {query.q && <> cho “{query.q}”</>}
+            {isText && total > 0 && " · xếp theo độ phù hợp"}
+            {pageInfo && <span className="result-page"> · {pageInfo}</span>}
+          </span>
+        )}
+        {isFiltered(query) && <Link to={clearUrl}>Xoá bộ lọc</Link>}
+      </div>
+      <div className="toolbar-tools">
+        <ViewSwitch current={query.view} hrefFor={viewHref} />
+        <label className={`sort-pick${fieldErrors.sort ? " invalid" : ""}`}>
+          <span>Sắp xếp</span>
+          <select name="sort" value={isText ? "" : query.sort} disabled={isText} onChange={(e) => onApply({ ...query, sort: e.target.value })}>
+            {isText ? (
+              <option value="">Theo độ phù hợp</option>
+            ) : (
+              SORTS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))
+            )}
+          </select>
+        </label>
+      </div>
+      {fieldErrors.sort && <span className="error">{fieldErrors.sort}</span>}
     </div>
   );
 }
@@ -116,15 +146,17 @@ function AppendMenu({ infinite }) {
   const invalid = isBusiness(list.error, "VALIDATION_FAILED");
   const firstLoad = list.total === null;
 
+  const fieldErrors = invalid ? list.error.fields : {};
+
   return (
     <>
-      <MenuHead query={query} tagList={tagList} fieldErrors={invalid ? list.error.fields : {}} onApply={apply} />
+      <MenuHead query={query} tagList={tagList} fieldErrors={fieldErrors} onApply={apply} total={list.total} dishes={list.items} loading={firstLoad && list.pending} />
+      <MenuToolbar query={query} total={list.total} clearUrl={clearUrl} onApply={apply} fieldErrors={fieldErrors} />
       {invalid && <InvalidQuery fields={list.error.fields} resetTo={clearUrl} resetLabel="Xoá bộ lọc" />}
       {!invalid && firstLoad && list.pending && <SkeletonList />}
       {!invalid && firstLoad && list.error && <LoadError onRetry={list.loadNext} />}
       {!firstLoad && (
         <>
-          <ResultLine query={query} total={list.total} clearUrl={clearUrl} />
           {list.total === 0 ? (
             <NoResults query={query} clearUrl={clearUrl} />
           ) : (
@@ -157,20 +189,21 @@ function PagedMenu() {
   // Đổi trang → cuộn mượt về đầu danh sách và đưa focus tới đó (nút phân trang ở cuối).
   const listTopRef = useListTop(query.page);
 
+  const fieldErrors = invalid ? list.error.fields : {};
+
   return (
     <>
-      <MenuHead query={query} tagList={tagList} fieldErrors={invalid ? list.error.fields : {}} onApply={apply} />
+      <MenuHead query={query} tagList={tagList} fieldErrors={fieldErrors} onApply={apply} total={data?.total ?? null} dishes={dishes} loading={list.status === "loading"} />
 
       <div ref={listTopRef} className="list-anchor" tabIndex={-1}>
         <span className="sr-only">Danh sách món, trang {query.page || 1}</span>
       </div>
+      <MenuToolbar query={query} total={data?.total ?? null} pageInfo={data && dishes.length > 0 ? `Trang ${data.page}/${totalPages}` : null} clearUrl={clearUrl} onApply={apply} fieldErrors={fieldErrors} />
       {list.status === "loading" && <SkeletonList />}
       {invalid && <InvalidQuery fields={list.error.fields} resetTo={clearUrl} resetLabel="Xoá bộ lọc" />}
       {list.status === "error" && !invalid && <LoadError onRetry={list.reload} />}
       {data && (
         <>
-          <ResultLine query={query} total={data.total} clearUrl={clearUrl} />
-
           {data.total === 0 ? (
             <NoResults query={query} clearUrl={clearUrl} />
           ) : dishes.length === 0 ? (

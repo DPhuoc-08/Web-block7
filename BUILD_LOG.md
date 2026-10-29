@@ -667,3 +667,60 @@ Phương án bỏ:
 - Cuộn vô hạn: cuộn 3 lần → 48 thẻ id 1–48 liên tục.
 - 820px: 2 cột; 375px: 1 cột, ảnh 96px, tên → mô tả → giá + chip cùng hàng. Không cuộn ngang ở cả hai.
 - Không lỗi console. `vite build` thành công.
+
+## Bước 24 — Đầu trang, ô tìm gọn, thanh danh mục, thanh công cụ (plan mục 13, 13.b–13.g)
+**Đã làm:**
+- `components/MenuHero.jsx` (mới):
+  - đầy đủ chỉ ở trang 1 khi chưa có điều kiện: dòng "THỰC ĐƠN · {total} MÓN" lấy `total` của response (13.e), tiêu đề, giới thiệu, khung tìm, ảnh ghép;
+  - còn lại thu gọn: h1 "Thực đơn" + khung tìm;
+  - ảnh ghép = 3 món có ảnh đầu tiên trong danh sách vừa tải (13.d), mỗi ảnh là link tới chi tiết; ảnh lỗi → minh hoạ (`DishImage`); đang tải → khung xương.
+- `components/SearchPanel.jsx`:
+  - ô tìm gọn (biểu tượng + ô chữ + Tìm); hàng dưới: ô chế độ, nút "Bộ lọc nâng cao"/"Ẩn bộ lọc" (`aria-expanded`, bật/tắt chế độ Nâng cao trong form — 13.f), gợi ý của chế độ;
+  - bỏ hàng chip (→ `CategoryBar`) và ô sắp xếp (→ thanh công cụ);
+  - cách áp dụng điều kiện, lỗi cạnh ô giữ như cũ.
+- `components/CategoryBar.jsx` (mới):
+  - "Tất cả" + 5 loại món nhiều món nhất (13.b, cùng số món thì id nhỏ trước); nút "N tag khác" / "Thu gọn" mở phần còn lại (loại món khác, rồi tag khác theo số món);
+  - tag đang lọc nằm ở phần ẩn → mở sẵn, ẩn nút thu gọn;
+  - số món = `dishCount` (13.c); link giữ các điều kiện **đã áp dụng** trên URL.
+- `DishListPage`: `MenuToolbar` thay `ResultLine` — trái: "1.200 món khớp điều kiện cho “…” · Trang x/y" + Xoá bộ lọc; phải: công tắc cách hiển thị + ô sắp xếp.
+  - Ô sắp xếp áp dụng ngay trên điều kiện của URL, về trang 1; toàn văn/gần đúng khoá ô (13.g).
+  - Lỗi `fields.sort` hiện dưới thanh công cụ.
+- `DishArt` thêm `hasArt(name)` (tách tag loại món).
+- `style.css`:
+  - nền đầu trang trải hết bề ngang bằng `box-shadow` + `clip-path` (không dùng `100vw`, tránh tràn ngang do thanh cuộn);
+  - ≤ 1023px ẩn ảnh ghép; ≤ 600px danh mục cuộn ngang một hàng chạm mép, công cụ xếp dọc;
+  - xoá CSS không còn dùng (`page-head`, `filters`, `filter-row`, `chips`, `chip`, `search-main`, `search-sort`, `search-box`).
+
+**Khác bản phác (ghi lại để nhóm biết):**
+- Ô chọn chế độ đặt ở hàng dưới ô tìm cho cả máy tính (bản phác máy tính đặt trong ô tìm, bản điện thoại đặt ở hàng dưới). Lý do: một bố cục cho mọi cỡ màn hình, ô chữ rộng hơn.
+- Gợi ý ô tìm rút gọn "Tìm món, ví dụ: phở, bún" (bản dài bị cắt ở 375px).
+- Danh mục và ô sắp xếp dùng điều kiện **đã áp dụng** (URL). Trước đây chip và ô sắp xếp lấy cả chữ đang gõ dở trong form — đã chốt ở 13.g.
+
+**Đã kiểm tra** (Chrome headless, **33/33 đạt**):
+- Đầu trang đầy đủ:
+  - "Thực đơn · 1.200 món", ảnh ghép là món 1, 2, 3;
+  - danh mục: Tất cả + Món nước, Món cơm, Món xào, Món chiên, Món nướng; "11 tag khác" mở ra đủ 16 tag, "Thu gọn".
+- Bấm "Lẩu" (phần ẩn) → `?mode=advanced&tag=9`, 61 món, đầu trang thu gọn, phần ẩn mở sẵn, form ở chế độ Nâng cao với tag 9.
+- Tìm, sắp xếp, chuyển trang:
+  - gõ "phở" + Tìm → `?q=phở`, "54 món khớp điều kiện cho “phở” · Trang 1/5";
+  - sắp xếp giá tăng → `?q=phở&sort=gia-tang`;
+  - Sau → `page=2` giữ q + sort; Back / Forward khôi phục đúng ô tìm và ô sắp xếp.
+- Danh mục và Xoá bộ lọc:
+  - đang tìm "bún" bấm Món nước → `?mode=advanced&q=bún&tag=2`;
+  - Xoá bộ lọc → `/dishes`, đầu trang đầy đủ trở lại; `?page=2` không điều kiện → thu gọn.
+- Bộ lọc nâng cao bật/tắt không đổi URL.
+- Toàn văn:
+  - ô trống → "Nhập từ khoá để tìm.";
+  - "cá kho tộ" → ô sắp xếp khoá, "xếp theo độ phù hợp", có điểm.
+- Lỗi URL:
+  - `?mode=advanced&minPrice=abc` → lỗi cạnh ô giá;
+  - `?sort=xyz` → lỗi dưới ô sắp xếp.
+- Tải thêm từ `?q=lẩu` → `?q=lẩu&view=more`, 60 món, không có "Trang x/y".
+- Ảnh ghép bị chặn → 3 hình minh hoạ.
+- 1280 / 820 / 375px không cuộn ngang; ≤ 1023px ẩn ảnh ghép; 375px danh mục cuộn ngang. Không lỗi console.
+
+**Hai mục chưa đạt ở lần chạy đầu — đều do kỳ vọng của script sai:**
+- "Chỉ 1 request /api/dishes": thấy 2 request giống hệt.
+  - Đo lại trên commit trước bước 24 (`git stash`, rồi `stash pop`) cũng là 2 → do React StrictMode ở bản dev chạy effect 2 lần (request đầu bị huỷ), ảnh ghép không gọi thêm.
+  - Sửa kiểm tra: đếm URL khác nhau = 1.
+- "lẩu" ở thực đơn = 60 chứ không phải 61: 61 là số của admin (tìm cả tên tag, có "Combo 100% bò"); chế độ Cơ bản chỉ tìm theo tên.

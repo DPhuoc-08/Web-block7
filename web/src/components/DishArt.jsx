@@ -64,6 +64,9 @@ const ART = {
 // Hình chung cho tag không có trong bảng trên: đĩa có nắp chụp.
 const FALLBACK = { group: "xanh", d: ["M14 42c0-10 8-18 18-18s18 8 18 18z", "M8 42h48", "M14 48h36"], circle: [{ cx: 32, cy: 20, r: 3 }] };
 
+// Tag có hình riêng = tag loại món (thanh danh mục dùng để tách loại món khỏi vùng miền, Hải sản, Món chay).
+export const hasArt = (name) => Object.hasOwn(ART, name);
+
 // Tag loại món dùng để chọn hình: tag đầu tiên có hình; không có thì tag đầu tiên (hình chung).
 export function artTag(tags = []) {
   return tags.find((t) => ART[t.name]) ?? tags[0] ?? null;
