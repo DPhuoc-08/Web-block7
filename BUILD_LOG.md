@@ -751,3 +751,15 @@ Phương án bỏ:
 - `evidence/README.md` ghi ngày chụp lại.
 
 **Vẫn còn (đã báo ở bước 21, chờ nhóm quyết):** `hotrotrinhbay.html` / `kichban.html` tràn ngang ở 375px (594 / 882px), không đổi so với trước bước 25.
+
+## Bước 26 — Sửa tài liệu tràn ngang ở 375px (`hotrotrinhbay.html`, `kichban.html`)
+**Lỗi (phát hiện ở bước 21, có từ bước 17):** ở 375px, `hotrotrinhbay.html` rộng 594px, `kichban.html` rộng 881–882px → cuộn ngang. Bước 17 ghi "không cuộn ngang ở 375px" là sai.
+- *Tái hiện:* mở 2 trang ở 375px (giả lập thiết bị, hoặc iframe 375px qua HTTP) → `scrollWidth` 594 / 881.
+- *Nguyên nhân:* các khối `pre` (SQL full-text, sơ đồ quan hệ bảng, URL request mẫu) đã có `overflow-x: auto`, nhưng nằm trong ô của `.grid`. Ô lưới mặc định có `min-width: auto`, nên giãn theo dòng code dài nhất và kéo cả trang rộng ra.
+- *Cách sửa:* thêm `.grid > * { min-width: 0; }` vào CSS của 2 trang → khối `pre` cuộn ngang bên trong ô. Không đổi nội dung.
+- *Phương án bỏ:* cho `pre` xuống dòng (`white-space: pre-wrap`) → SQL và sơ đồ ASCII mất căn lề, khó đọc.
+
+**Bằng chứng sau khi sửa** (Chrome headless, **6/6 đạt**):
+- 375px giả lập: `scrollWidth` = 375 cho cả 2 trang; mọi phần tử vượt khung đều nằm trong `pre` / `.table-wrap` (vùng tự cuộn); 3 + 7 khối `pre` vừa khung.
+- Iframe 375px qua HTTP: `scrollWidth` 375 = `clientWidth` cho cả 2 trang.
+- 1280px: không cuộn ngang, link mục lục đúng id.

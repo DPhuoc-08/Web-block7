@@ -71,6 +71,9 @@
     border-radius: 10px; padding: 16px;
   }
   .grid { display: grid; gap: 12px; }
+  /* Ô lưới mặc định min-width: auto → giãn theo dòng code dài nhất và đẩy trang tràn ngang ở 375px.
+     min-width: 0 để khối <pre> tự cuộn ngang bên trong ô. */
+  .grid > * { min-width: 0; }
   @media (min-width: 768px) {
     .grid.c2 { grid-template-columns: 1fr 1fr; }
   }
