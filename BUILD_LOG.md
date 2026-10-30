@@ -921,4 +921,20 @@ Phương án bỏ:
 - `mode=abc|fulltext|advanced`, fuzzy thiếu / trắng / lặp `q`, fuzzy + `all=true`, `page=0` → `VALIDATION_FAILED` đúng trường; `mode=basic` tường minh = mặc định, không có `score`.
 - `check-api.sh`: **298/298 đạt** (273 + 25 phần H).
 
-**Ghi nhận (giới hạn của similarity trên cả tên):** "Nguyễn" chỉ khớp 3 đầu bếp họ Nguyễn có tên ngắn (0.500, 0.438, 0.412) — tìm một phần tên thì dùng Cơ bản. Đã ghi trong plan 14.2.
+**Ghi nhận (giới hạn của similarity trên cả tên):** điểm giảm khi tên dài hơn từ khoá — "Nguyễn" khớp đủ 3 đầu bếp họ Nguyễn trong seed nhưng điểm đã xuống 0.500 → 0.438 → 0.412 theo độ dài tên (SQL: chỉ có 3 người họ Nguyễn); tên dài hơn có thể rơi dưới 0.3 → tìm một phần tên thì dùng Cơ bản. Đã ghi trong plan 14.2.
+
+## Bước 32 — SPA admin đầu bếp, nguyên liệu: kiểu tìm Cơ bản / Gần đúng (plan 14.f, 14.g)
+**Đã làm:**
+- `AdminChefListPage.jsx`, `AdminIngredientListPage.jsx`: cùng khuôn admin món (bước 30) — `MODES` Cơ bản / Gần đúng truyền cho `AdminSearch`; `mode` đọc từ URL qua `adminModeParam` và gửi API (cơ bản không gửi → request như cũ); link số trang giữ `q` + `mode`; cột **Điểm** khi có `score`.
+- Form món, trang xoá đầu bếp không đổi: vẫn gọi `?all=true` (không có `mode`).
+
+**Đã kiểm tra** (Chrome headless, **26/26 đạt**):
+- Mỗi trang (11 ca): ô kiểu tìm Cơ bản / Gần đúng, mặc định Cơ bản; Cơ bản không có cột Điểm, id tăng dần; Gần đúng + trống → lỗi cạnh ô, URL không đổi; `mode=abc` → "Điều kiện tìm không hợp lệ"; 1280 / 820 / 375px không cuộn ngang; không lỗi console.
+  - Đầu bếp "Anh Lan" → Lý Anh Lan đứng đầu, điểm giảm dần.
+  - Nguyên liệu "Tôm xú" → Tôm sú 0.400, Tôm thẻ 0.400 (cùng điểm, id 7 trước 57), Tôm khô 0.364, Mắm tôm 0.364, Tôm càng 0.333 — đúng số API phần H.
+- Sửa đầu bếp từ kết quả gần đúng "Anh Lan" → lưu xong về `?q=Anh+Lan&mode=fuzzy&msg=chef-updated&id=9`, dòng id 9 được tô.
+- Form thêm món vẫn đủ 60 đầu bếp, 250 nguyên liệu; request là `/api/chefs?all=true`, `/api/ingredients?all=true`.
+- `vite build` thành công.
+- Kịch bản báo chưa đạt lần đầu do **kịch bản**: đọc bảng sau 800ms trong khi request gần đúng về sau ~1,5–3s (dòng được tô khi đo lại ở 3s); tìm ô chọn đầu bếp bằng `select` trong khi form dùng radio `chefId`. Đã sửa kịch bản, không phải lỗi app.
+
+**Trạng thái:** ca sửa đầu bếp đã ghi thật (PATCH không đổi dữ liệu) → seed lại ở bước 33.
