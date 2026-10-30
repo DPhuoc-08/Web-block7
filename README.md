@@ -45,13 +45,15 @@ npx prisma db seed                                         # nạp dữ liệu m
 
 ```bash
 cd api
-./scripts/check-api.sh        # 251 kiểm tra (cần curl, jq; API đang chạy)
+./scripts/check-api.sh        # 298 kiểm tra (cần curl, jq; API đang chạy)
 ./scripts/check-api.sh A      # 74 — bảng REST của đề block6 + kỹ thuật + CORS
 ./scripts/check-api.sh B      # 34 — mở rộng block6 (quan hệ, ảnh, tìm admin, IN_USE, chuyển món)
 ./scripts/check-api.sh C      # 24 — phân trang: metadata, trang vượt phạm vi, page/pageSize sai, sort qua mọi trang
 ./scripts/check-api.sh D      # 44 — search 4 chế độ: escape % _ \, basic = advanced, 0 và false, fulltext, fuzzy (cùng điểm → id)
 ./scripts/check-api.sh E      # 35 — tag: GET/POST /api/tags, tagIds của món và đầu bếp
 ./scripts/check-api.sh F      # 40 — phân trang admin /api/chefs, /api/ingredients: metadata, all=true, tham số sai, gom mọi trang, escape % _ \
+./scripts/check-api.sh G      # 22 — tìm theo nguyên liệu, đầu bếp (?by=): total khớp SQL, mỗi món một lần, escape, fuzzy theo nguyên liệu / đầu bếp
+./scripts/check-api.sh H      # 25 — gần đúng admin /api/chefs, /api/ingredients ?mode=fuzzy: điểm rồi id, q bắt buộc, không cùng all=true
 ```
 Kiểm tra 500 (mất kết nối DB): `DATABASE_URL="postgresql://u:p@127.0.0.1:1/x" PORT=3001 node src/app.js &` rồi `API_BROKEN=http://localhost:3001 ./scripts/check-api.sh A`. Script tự tạo rồi xoá bản ghi test (tag mới thì không xoá được) → **seed lại sau khi test**.
 
@@ -97,13 +99,14 @@ Lỗi kỹ thuật không theo shape này: sai URL → **404**, body JSON hỏng
 | :--- | :--- | :--- |
 | `mode` | — | `basic` (mặc định) \| `advanced` \| `fulltext` \| `fuzzy`; khác → `VALIDATION_FAILED` |
 | `page`, `pageSize` | mọi chế độ | số nguyên dương; `pageSize` ≤ 100, mặc định 12; sai (0, âm, `1.5`, `abc`) → `VALIDATION_FAILED` |
-| `q` | basic, advanced | tên **chứa** chuỗi, không phân biệt hoa thường; `%`, `_`, `\` là ký tự thường; trống → không có tiêu chí tên |
+| `q` | basic, advanced | **chứa** chuỗi (cột do `by` chọn, mặc định tên món), không phân biệt hoa thường; `%`, `_`, `\` là ký tự thường; trống → không có tiêu chí văn bản |
 | `q` | fulltext, fuzzy | **bắt buộc** (trống → `VALIDATION_FAILED`) |
 | `sort` | basic, advanced | `ten` \| `gia-tang` \| `gia-giam` \| `moi-nhat` (id giảm, giữ trong API; trang admin không dùng nữa); trống = `id` tăng dần. Luôn thêm `id ASC` làm thứ tự phụ |
 | `tag` | advanced | id tag có thật |
 | `minPrice`, `maxPrice` | advanced | số nguyên ≥ 0 (`0` là tiêu chí có hiệu lực); `minPrice > maxPrice` → lỗi ở `maxPrice` |
 | `available` | advanced | `true` \| `false` (`false` là tiêu chí có hiệu lực); giá trị khác → lỗi |
-| `searchIn` | basic | `name,tag` — trang admin tìm cả theo tên tag |
+| `by` | basic, advanced, fuzzy | `name` (mặc định) \| `ingredient` (món có **ít nhất một** nguyên liệu tên khớp) \| `chef` (món do đầu bếp tên khớp phụ trách); giá trị khác → `VALIDATION_FAILED`. Fulltext bỏ qua (luôn tên + mô tả món) |
+| `searchIn` | basic, `by=name` | `name,tag` — trang admin tìm cả theo tên tag |
 
 Tiêu chí của advanced nối bằng **AND**. Lọc và sắp xếp chạy trong SQL **trước** `LIMIT/OFFSET`, áp dụng cho toàn bộ kết quả.
 
@@ -112,7 +115,7 @@ Tiêu chí của advanced nối bằng **AND**. Lọc và sắp xếp chạy tro
 | `basic` | `name ILIKE '%' \|\| q_đã_escape \|\| '%'` (Prisma `contains` + `escapeLike`) |
 | `advanced` | như basic + `EXISTS (dish_tags …)`, `price >=`, `price <=`, `available =` |
 | `fulltext` | `setweight(to_tsvector('simple', coalesce(name,'')), 'A') \|\| setweight(to_tsvector('simple', coalesce(description,'')), 'D') @@ plainto_tsquery('simple', q)`; `score` = `ts_rank` |
-| `fuzzy` | `set_config('pg_trgm.similarity_threshold', '0.3', true)` rồi `name % q` trong **cùng transaction**; `score` = `similarity(name, q)` |
+| `fuzzy` | `set_config('pg_trgm.similarity_threshold', '0.3', true)` rồi `name % q` trong **cùng transaction**; `score` = `similarity(name, q)`. `by=ingredient`: `ingredients.name % q` qua `dish_ingredients`, `GROUP BY` món, điểm = nguyên liệu giống nhất; `by=chef`: `chefs.name % q` |
 
 `fulltext`, `fuzzy`: xếp theo `score` giảm dần rồi `id` tăng dần (không nhận `sort`); mỗi món có thêm `score`. Basic/advanced: `COUNT` và trang chạy trong một transaction `REPEATABLE READ`. Raw SQL chỉ qua tagged template `prisma.$queryRaw` (tham số hoá).
 
@@ -141,25 +144,27 @@ Tag chỉ thêm, không sửa / xoá (nhóm chốt).
 - `?q=`: đầu bếp khớp tên hoặc tên chuyên môn; nguyên liệu khớp tên hoặc đơn vị. Không phân biệt hoa thường, `%` `_` `\` là chữ thường (`escapeLike`).
 - `?page=` (mặc định 1), `?pageSize=` (mặc định 20, tối đa 100). Sai → `VALIDATION_FAILED` kèm `fields`; trang vượt phạm vi → `items: []`, `total` thật, `page` giữ nguyên.
 - `?all=true`: bỏ phân trang, trả mọi bản ghi khớp (`page: 1`, `pageSize: total`). Dùng cho form món (chọn đầu bếp, nguyên liệu) và trang xoá đầu bếp (chọn người nhận món). `all` khác `true` → `VALIDATION_FAILED`.
+- `?mode=fuzzy&q=`: tìm **gần đúng theo tên** (`pg_trgm`, ngưỡng 0.3, cùng cách đặt ngưỡng như món), xếp `score` giảm dần rồi `id`, mỗi dòng có `score`. `q` bắt buộc; không dùng cùng `all=true`; `mode` khác `basic` / `fuzzy` → `VALIDATION_FAILED`. Không có toàn văn (hai bảng chỉ có tên ngắn, không có mô tả).
 
 ## Các trang của SPA
 
 | URL | Nội dung | Gọi API |
 | :--- | :--- | :--- |
-| `/dishes` | Thực đơn (giao diện theo bản phác Figma, plan mục 13): đầu trang + khung tìm 4 chế độ ("Bộ lọc nâng cao"), thanh danh mục tag, thẻ món dạng lưới (hình minh hoạ theo loại món khi chưa có ảnh); thanh công cụ: **Số trang / Tải thêm / Cuộn vô hạn** + sắp xếp | `GET /api/dishes?…&pageSize=12`, `GET /api/tags` |
+| `/dishes` | Thực đơn (giao diện theo bản phác Figma, plan mục 13): đầu trang + khung tìm 4 chế độ, ô **"Tìm theo" tên món / nguyên liệu / đầu bếp**, "Bộ lọc nâng cao", thanh danh mục tag, thẻ món dạng lưới (hình minh hoạ theo loại món khi chưa có ảnh); thanh công cụ: **Số trang / Tải thêm / Cuộn vô hạn** + sắp xếp | `GET /api/dishes?…&pageSize=12`, `GET /api/tags` |
 | `/dishes/:id` | Chi tiết: ảnh, giá, tag (link lọc), đầu bếp, nguyên liệu | `GET /api/dishes/:id` |
-| `/admin/dishes?q=&page=` | Quản trị món: 20 món/trang, id tăng dần, tìm theo tên hoặc tag | `GET /api/dishes?searchIn=name,tag&pageSize=20` |
+| `/admin/dishes?q=&mode=&page=` | Quản trị món: 20 món/trang, id tăng dần; kiểu tìm **Cơ bản** (tên hoặc tag) / **Toàn văn** / **Gần đúng** — hai kiểu sau xếp theo điểm, có cột Điểm | `GET /api/dishes?searchIn=name,tag&pageSize=20` hoặc `?mode=fulltext\|fuzzy&q=` |
 | `/admin/dishes/new`, `/:id/edit`, `/:id/delete` | Form món (chọn nhiều tag, thêm tag mới, đầu bếp đúng chuyên môn lên đầu), xác nhận xoá | `/api/dishes…`, `/api/tags` |
-| `/admin/chefs?q=&page=`, `/admin/ingredients?q=&page=` | Quản trị đầu bếp / nguyên liệu: 20 dòng/trang, id tăng dần, tìm | `GET /api/chefs?q=&page=&pageSize=20`, `GET /api/ingredients?…` |
+| `/admin/chefs?q=&mode=&page=`, `/admin/ingredients?…` | Quản trị đầu bếp / nguyên liệu: 20 dòng/trang, id tăng dần; kiểu tìm **Cơ bản** / **Gần đúng** (theo tên, xếp theo điểm, cột Điểm) | `GET /api/chefs?q=&page=&pageSize=20` (+ `mode=fuzzy`), `GET /api/ingredients?…` |
 | `/admin/chefs/…`, `/admin/ingredients/…` (form, xoá) | Như block6; đầu bếp chọn chuyên môn bằng tag | `/api/chefs…`, `/api/ingredients…`, `?all=true` cho danh sách chọn |
 
-**Sau khi lưu ở trang quản trị:** sửa / xoá / Huỷ → về đúng trang danh sách đang xem (giữ `page`, `q`), dòng vừa sửa được tô. Thêm mới → về trang 1 + thông báo (bản ghi mới nằm ở trang cuối).
+**Sau khi lưu ở trang quản trị:** sửa / xoá / Huỷ → về đúng trang danh sách đang xem (giữ `page`, `q`, `mode`), dòng vừa sửa được tô. Thêm mới → về trang 1 + thông báo (bản ghi mới nằm ở trang cuối).
 
-**URL của thực đơn** chứa toàn bộ điều kiện đã áp dụng: `/dishes?mode=&q=&tag=&minPrice=&maxPrice=&available=&sort=&view=&page=` (giá trị mặc định không ghi).
+**URL của thực đơn** chứa toàn bộ điều kiện đã áp dụng: `/dishes?mode=&by=&q=&tag=&minPrice=&maxPrice=&available=&sort=&view=&page=` (giá trị mặc định không ghi).
 - Áp dụng điều kiện khi bấm Tìm / Enter (ô chữ) hoặc khi đổi ô chọn, bấm nút danh mục, đổi sắp xếp — không theo từng phím. Danh mục và sắp xếp dùng điều kiện đã áp dụng trên URL. Đổi điều kiện → về trang 1 / danh sách mới. Chuyển trang → giữ điều kiện, chỉ đổi `page`.
 - `view=pages` (mặc định): `page` nằm trên URL → Reload, copy link, Back/Forward mở lại đúng trang.
 - `view=more`, `view=scroll`: `page` không ghi lên URL → mở lại link thì **tải lại từ đầu** với cùng điều kiện. Hai kiểu dùng chung `loadNext()`: không gửi trùng, bỏ response của điều kiện cũ, lỗi thì giữ danh sách và cho Thử lại. Cuộn vô hạn có nút "Tải thêm" dự phòng.
-- URL sửa tay sai (`?page=0`, `?minPrice=abc`) → lỗi cạnh ô + "Xoá bộ lọc", không trang trắng.
+- URL sửa tay sai (`?page=0`, `?minPrice=abc`, `?by=abc`) → lỗi cạnh ô + "Xoá bộ lọc", không trang trắng.
+- "Tìm theo" áp dụng khi bấm Tìm như ô chế độ; chọn Toàn văn thì ô khoá ở "Theo tên món". Dòng kết quả ghi rõ: "Kết quả cho nguyên liệu “tôm”".
 
 ## Cấu trúc
 

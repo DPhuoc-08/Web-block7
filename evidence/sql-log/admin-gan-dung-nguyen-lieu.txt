@@ -1,0 +1,22 @@
+Thao tác: Admin nguyên liệu — Gần đúng "Tôm xú"
+URL trang: /admin/ingredients?q=Tôm xú&mode=fuzzy
+
+=== GET /api/ingredients?mode=fuzzy&q=Tôm xú&pageSize=20
+Response: ok: true, items: 5, total: 5, page: 1, pageSize: 20, id: [7,57,80,145,58], score: [0.4,0.4,0.364,0.364,0.333]
+
+[SQL 59ms] SELECT set_config('pg_trgm.similarity_threshold', $1, true)
+          params: ["0.3"]
+[SQL 66ms] 
+        WITH matched AS (
+    SELECT i.id, round(similarity(i.name, $1)::numeric, 3) AS score
+    FROM ingredients i WHERE i.name % $2)
+        SELECT (SELECT count(*) FROM matched)::int AS total,
+               coalesce((
+                 SELECT json_agg(json_build_object('id', p.id, 'score', p.score) ORDER BY p.score DESC, p.id ASC)
+                 FROM (SELECT id, score FROM matched ORDER BY score DESC, id ASC LIMIT $3 OFFSET $4) p
+               ), '[]'::json) AS hits
+          params: ["Tôm xú","Tôm xú",20,0]
+[SQL 57ms] COMMIT
+          params: []
+[SQL 71ms] SELECT "public"."ingredients"."id", "public"."ingredients"."name", "public"."ingredients"."unit", COALESCE("aggr_selection_0_DishIngredient"."_aggr_count_dishes", 0) AS "_aggr_count_dishes" FROM "public"."ingredients" LEFT JOIN (SELECT "public"."dish_ingredients"."ingredientId", COUNT(*) AS "_aggr_count_dishes" FROM "public"."dish_ingredients" WHERE 1=1 GROUP BY "public"."dish_ingredients"."ingredientId") AS "aggr_selection_0_DishIngredient" ON ("public"."ingredients"."id" = "aggr_selection_0_DishIngredient"."ingredientId") WHERE "public"."ingredients"."id" IN ($1,$2,$3,$4,$5) OFFSET $6
+          params: [7,57,80,145,58,"0"]

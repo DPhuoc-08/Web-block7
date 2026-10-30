@@ -176,7 +176,7 @@
         <li><b>Chuyển trang sau khi search:</b> giữ đúng bộ điều kiện, không trộn kết quả</li>
         <li><b>Xoá điều kiện, Reload, mở lại link:</b> khôi phục như thiết kế</li>
       </ol>
-      <p class="muted">Kết quả: API <b>251/251</b> kiểm tra (<code>check-api.sh</code>, gồm 40 kiểm tra phân trang admin thêm sau nghiệm thu); truy vấn mẫu 14/14 đúng kỳ vọng; kịch bản trình duyệt bước 9–15 đạt hết; <b>cuộn hết 1.200 món: đủ id 1–1200, không trùng, không mất</b>. Chi tiết trong <code>BUILD_LOG.md</code>.</p>
+      <p class="muted">Kết quả: API <b>298/298</b> kiểm tra (<code>check-api.sh</code>, gồm 40 kiểm tra phân trang admin, 22 tìm theo nguyên liệu / đầu bếp, 25 gần đúng admin thêm sau nghiệm thu); truy vấn mẫu 14/14 đúng kỳ vọng; kịch bản trình duyệt bước 9–15 đạt hết; <b>cuộn hết 1.200 món: đủ id 1–1200, không trùng, không mất</b>. Chi tiết trong <code>BUILD_LOG.md</code>.</p>
     </div>
   </div>
 </section>
@@ -287,8 +287,33 @@
   <ul>
     <li>Toàn văn, gần đúng mà <b>từ khoá trống</b> → SPA báo "Nhập từ khoá để tìm", không gửi request; API cũng trả <code>VALIDATION_FAILED</code> nếu bị gọi thẳng.</li>
     <li>Không có kết quả → <span class="tag s200">200</span> <code>ok: true, items: [], total: 0</code>, không phải "không tìm thấy".</li>
-    <li>Tham số sai (<code>page=0</code>, <code>minPrice=abc</code>, <code>available=yes</code>, giá từ &gt; giá đến, tag không có) → <span class="tag biz">VALIDATION_FAILED</span> kèm lỗi theo từng ô; khác block6 (bỏ qua giá trị lạ) để người dùng biết điều kiện không được áp dụng.</li>
+    <li>Tham số sai (<code>page=0</code>, <code>minPrice=abc</code>, <code>available=yes</code>, giá từ &gt; giá đến, tag không có, <code>by=abc</code>) → <span class="tag biz">VALIDATION_FAILED</span> kèm lỗi theo từng ô; khác block6 (bỏ qua giá trị lạ) để người dùng biết điều kiện không được áp dụng.</li>
   </ul>
+
+  <h3>Tìm theo nguyên liệu, đầu bếp (bổ sung 30/10/2026)</h3>
+  <p>Dùng <b>chung ô tìm</b> tên món, thêm ô chọn <b>"Tìm theo: tên món / nguyên liệu / đầu bếp"</b> (tham số <code>by</code>), mặc định tên món — nên cơ bản vẫn đúng đề "tìm một phần tên". <code>by</code> chỉ đổi cột mà từ khoá so khớp; tag, giá, trạng thái, sắp xếp, phân trang giữ nguyên.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Tìm theo</th><th>Cơ bản / nâng cao</th><th>Gần đúng</th></tr></thead>
+    <tbody>
+      <tr><td>Nguyên liệu</td><td>Món có <b>ít nhất một</b> nguyên liệu tên chứa chuỗi (mỗi món đếm một lần): "tôm" → 149 món (kể cả món chỉ có Mắm tôm)</td><td>Điểm = nguyên liệu giống nhất của món: "Tôm xú" → 136 món, đầu tiên 0.400 (Tôm sú, Tôm thẻ)</td></tr>
+      <tr><td>Đầu bếp</td><td>Món do đầu bếp tên chứa chuỗi phụ trách: "mai" → 122 món</td><td>"Trần Thị Bít" → 21 món của Trần Thị Bích, cùng điểm 0.667 → xếp theo id</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Toàn văn luôn tìm trong tên + mô tả món: chọn Toàn văn thì ô "Tìm theo" khoá ở tên món. Phương án đã bỏ: gộp một từ khoá khớp tên <i>hoặc</i> nguyên liệu <i>hoặc</i> đầu bếp — đổi nghĩa cơ bản của đề, kết quả lẫn, người dùng không biết vì sao món khớp.</p>
+
+  <h3>Phía quản trị</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Trang</th><th>Kiểu tìm</th><th>Ví dụ</th></tr></thead>
+    <tbody>
+      <tr><td>Món ăn</td><td>Cơ bản (tên hoặc tag) · Toàn văn · Gần đúng — dùng lại <code>mode</code> của <code>GET /api/dishes</code></td><td>Gần đúng "Bò lúc lắt" → 6 món, "Bò lúc lắc" 0.667 đầu tiên</td></tr>
+      <tr><td>Đầu bếp, nguyên liệu</td><td>Cơ bản · Gần đúng theo tên (<code>?mode=fuzzy</code>). Không có toàn văn: chỉ có tên ngắn, không có mô tả</td><td>"Nguyễn Văn Ann" → Nguyễn Văn An 0.813; "Tôm xú" → 5 nguyên liệu</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Toàn văn / gần đúng ở admin xếp theo điểm rồi id và có cột Điểm — ngoại lệ có chủ đích của "admin xếp id tăng dần": xếp theo id thì dòng khớp nhất có thể nằm ở trang sau. <code>mode</code> nằm trên URL như <code>q</code>, sửa xong quay về đúng trang kết quả.</p>
 </section>
 
 <!-- ============ 5. POSTGRESQL ============ -->
@@ -316,6 +341,7 @@ COMMIT</code></pre>
       <ul>
         <li>Extension <code>pg_trgm</code> bật một lần (<code>setup-search.sql</code>).</li>
         <li>Ngưỡng công bố <b>0.3</b>, đặt bằng <code>SET LOCAL</code> (<code>set_config(…, true)</code>) <b>trong cùng transaction</b>: app dùng connection pool, đặt cho cả session sẽ "rò" sang request khác.</li>
+        <li>Cùng một hàm cho 5 kiểu: tên món, nguyên liệu của món (<code>GROUP BY</code> món, điểm = <code>max(similarity)</code>), đầu bếp của món, tên đầu bếp, tên nguyên liệu. Tên bảng là hằng trong code; chỉ <code>$q</code> là tham số.</li>
       </ul>
     </div>
   </div>
@@ -370,7 +396,7 @@ COMMIT</code></pre>
       <tr><td><code>fetch</code> + <code>AbortController</code></td><td>Gọi API, huỷ request cũ</td><td>Đổi điều kiện nhanh thì response cũ không ghi đè hay nối vào kết quả mới</td></tr>
       <tr><td><code>IntersectionObserver</code></td><td>Cuộn vô hạn</td><td>Có sẵn trong browser; theo dõi một phần tử canh, không gắn sự kiện scroll</td></tr>
       <tr><td>CSS thuần</td><td>Giao diện, responsive, hiệu ứng cơ bản</td><td>Tiếp tục bộ màu block6; thực đơn làm lại theo bản phác Figma của nhóm (đầu trang, danh mục, thẻ món dạng lưới, 11 hình minh hoạ SVG tự vẽ cho món chưa có ảnh); khung xương khi tải, món mới hiện dần; tắt chuyển động khi người dùng bật "giảm chuyển động"</td></tr>
-      <tr><td><code>check-api.sh</code> · <code>run-sql.js</code> · Chrome headless</td><td>Nghiệm thu</td><td>251 kiểm tra API; truy vấn mẫu có kỳ vọng; kịch bản trình duyệt gom id qua cả 3 kiểu UI</td></tr>
+      <tr><td><code>check-api.sh</code> · <code>run-sql.js</code> · Chrome headless</td><td>Nghiệm thu</td><td>298 kiểm tra API; truy vấn mẫu có kỳ vọng; kịch bản trình duyệt gom id qua cả 3 kiểu UI</td></tr>
       <tr><td>Git</td><td>Lưu phiên bản</td><td>Mỗi bước một commit; commit "Nghiệm thu giai đoạn I" đánh dấu mốc đạt đủ tiêu chí</td></tr>
     </tbody>
   </table>

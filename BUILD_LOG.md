@@ -938,3 +938,26 @@ Phương án bỏ:
 - Kịch bản báo chưa đạt lần đầu do **kịch bản**: đọc bảng sau 800ms trong khi request gần đúng về sau ~1,5–3s (dòng được tô khi đo lại ở 3s); tìm ô chọn đầu bếp bằng `select` trong khi form dùng radio `chefId`. Đã sửa kịch bản, không phải lỗi app.
 
 **Trạng thái:** ca sửa đầu bếp đã ghi thật (PATCH không đổi dữ liệu) → seed lại ở bước 33.
+
+## Bước 33 — Nghiệm thu lại sau bổ sung tìm kiếm; tài liệu, bằng chứng (plan mục 14)
+**Nghiệm thu lại (bảng mục 8):**
+- API: `check-api.sh` **298/298** (A–H) trước khi seed; sau `npx prisma db seed` chạy lại phần chỉ đọc C 24, D 44, F 40, G 22, H 25 — đều đạt. Host trước khi seed: `aws-0-ap-southeast-1.pooler.supabase.com`, ref `ovirbpyprylgaqgvgzil` (block7).
+- Gom id qua 3 kiểu hiển thị (Chrome headless), so với danh sách id gom từ API (100 món/trang), **10/10 đạt**:
+  - Hải sản + giá tăng (điều kiện cũ, kiểm tra hồi quy): Số trang / Tải thêm / Cuộn vô hạn **386/386**, đúng thứ tự, không trùng;
+  - Theo nguyên liệu "tôm" + giá giảm: **149/149** cả 3 kiểu;
+  - Gần đúng theo đầu bếp "Trần Thị Bít": **21/21** cả 3 kiểu (cùng điểm → id tăng dần qua 2 trang);
+  - không lỗi console.
+- Lần chạy đầu, Số trang chỉ gom được 24/386 và 36/149: **kịch bản** tìm link trang kế tiếp lúc trang đang tải (thanh phân trang tạm ẩn khi `data` chưa về) → dừng sớm. Sửa kịch bản chờ nút trang hiện tại = n rồi bấm `rel="next"`; không phải lỗi app (Tải thêm, Cuộn cùng lúc đạt đủ).
+- `vite build` thành công (bước 29, 30, 32).
+
+**Tài liệu (đối chiếu code thật):**
+- `README.md`: số kiểm tra (298, thêm dòng G, H); tham số `by` trong bảng `GET /api/dishes`, SQL fuzzy theo nguyên liệu / đầu bếp; `?mode=fuzzy` của `/api/chefs`, `/api/ingredients`; bảng các trang (ô "Tìm theo", kiểu tìm admin); URL thực đơn có `by`; sau khi lưu giữ cả `mode`.
+- `hotrotrinhbay.html` mục 4: bảng "Tìm theo nguyên liệu, đầu bếp" (cơ bản / gần đúng, ví dụ seed) + phương án đã bỏ; bảng "Phía quản trị"; mục 5: fuzzy dùng chung 5 kiểu; số kiểm tra 298.
+- `kichban.html`: hợp đồng thêm `by`; 2 trường hợp biên (`by=abc`, escape với `by`); luồng **H** (tìm theo nguyên liệu, SQL `EXISTS` thật) và **I** (gần đúng theo đầu bếp, SQL thật), luồng Reload đổi thành **J**; kịch bản demo thêm bước 16 (Tìm theo) và 17 (admin toàn văn / gần đúng), phần 3 đánh số từ 20. Số liệu trong kịch bản lấy từ API / SQL (149, 122 — thẻ đầu Bún bò Huế id 3, 21 × 0.667, 6 món admin, Tôm sú / Tôm thẻ 0.400, Nguyễn Văn An 0.813).
+- 375 / 820 / 1280px: cả hai file HTML không cuộn ngang, không lỗi console.
+
+**Bằng chứng (`evidence/`):**
+- `sql-log/tim-theo-nguyen-lieu.txt`, `gan-dung-dau-bep.txt`, `admin-gan-dung-nguyen-lieu.txt`: URL trang ↔ request ↔ SQL thật (API phụ :3001, `LOG_SQL=1`).
+- `screens/tim-theo-nguyen-lieu.png`, `admin-gan-dung-mon.png`, `admin-gan-dung-nguyen-lieu.png`.
+- `evidence/README.md`: mục "Bổ sung 30/10/2026".
+- Sự cố khi thu: lần đầu log SQL trống vì một API phụ từ lần chạy trước vẫn giữ cổng 3001 (`kill %1` không dừng được), request đi vào tiến trình cũ có stdout trỏ tới file đã xoá. Dừng tiến trình theo pid rồi thu lại; không ảnh hưởng code.

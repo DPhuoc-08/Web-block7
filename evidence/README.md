@@ -24,6 +24,18 @@ Thu ngày 26/10/2026 trên dữ liệu seed chuẩn (`npx prisma db seed`, tất
 
 Ngoài ra: trang vượt phạm vi `?page=101` → `ok: true, items: [], total: 1200, page: 101` ([sql-log/vuot-pham-vi.txt](sql-log/vuot-pham-vi.txt)); tham số sai `?minPrice=abc` → `VALIDATION_FAILED`, `fields.minPrice`, **không có câu SQL nào** (API dừng ở bước kiểm tra, [sql-log/tham-so-sai.txt](sql-log/tham-so-sai.txt)); admin món tìm "lẩu" trang 2 → 20/61 món, mới nhất trước ([sql-log/admin.txt](sql-log/admin.txt)).
 
+### Bổ sung 30/10/2026: tìm theo nguyên liệu, đầu bếp; admin có toàn văn, gần đúng (plan mục 14)
+
+Thu trên seed chuẩn (seed lại sau test ghi), API phụ :3001 `LOG_SQL=1`, ảnh chụp bằng Chrome headless với `vite` dev.
+
+| Thao tác | URL trang | Request API | Kết quả | SQL thật |
+| :--- | :--- | :--- | :--- | :--- |
+| Thực đơn, Tìm theo nguyên liệu | `/dishes?by=ingredient&q=tôm` | `GET /api/dishes?mode=basic&by=ingredient&q=tôm&pageSize=12` | 12/149 món, đầu Hủ tiếu Nam Vang (id 4) | [sql-log/tim-theo-nguyen-lieu.txt](sql-log/tim-theo-nguyen-lieu.txt): `EXISTS (… dish_ingredients … ingredients.name ILIKE ('%' \|\| $1 \|\| '%'))` cho cả `COUNT` và trang — mỗi món một lần |
+| Thực đơn, Gần đúng theo đầu bếp | `/dishes?mode=fuzzy&by=chef&q=Trần Thị Bít` | `GET /api/dishes?mode=fuzzy&by=chef&q=Trần Thị Bít&pageSize=12` | 12/21 món của Trần Thị Bích, cùng 0.667 → id tăng dần | [sql-log/gan-dung-dau-bep.txt](sql-log/gan-dung-dau-bep.txt): `set_config(…, true)`, `JOIN chefs c … WHERE c.name % $2`, `COMMIT` |
+| Admin nguyên liệu, Gần đúng | `/admin/ingredients?q=Tôm xú&mode=fuzzy` | `GET /api/ingredients?mode=fuzzy&q=Tôm xú&pageSize=20` | 5 nguyên liệu: id 7, 57 (cùng 0.400), 80, 145, 58 | [sql-log/admin-gan-dung-nguyen-lieu.txt](sql-log/admin-gan-dung-nguyen-lieu.txt): `ingredients i WHERE i.name % $2`, `ORDER BY score DESC, id ASC` |
+
+Ảnh: `screens/tim-theo-nguyen-lieu.png` (ô "Tìm theo nguyên liệu", dòng "Kết quả cho nguyên liệu “tôm”"), `screens/admin-gan-dung-mon.png` (admin món, Gần đúng "Bò lúc lắt", cột Điểm), `screens/admin-gan-dung-nguyen-lieu.png` (admin nguyên liệu, Gần đúng "Tôm xú").
+
 **Cách đọc log SQL.** Mỗi request danh sách gồm: (1) `COUNT(*)` với **cùng điều kiện** → `total`; (2) truy vấn món của trang có `ORDER BY … id ASC LIMIT $n OFFSET $m` — tham số cuối là `pageSize` và `(page − 1) × pageSize` (trang 2: `["12","12"]`); (3) ba truy vấn nạp đầu bếp, tag của đúng các món trên trang (`WHERE id IN (…)`). Chế độ cơ bản / nâng cao chạy (1) và (2) trong một transaction `REPEATABLE READ` để `total` và `items` nhìn cùng một trạng thái dữ liệu; log của Prisma không in `BEGIN`, chỉ in `COMMIT` ở cuối. Toàn văn / gần đúng gộp `total` và id của trang vào **một** câu SQL (CTE `matched`).
 
 ## Lỗi đã phát hiện: ký tự người dùng gõ bị hiểu là wildcard
