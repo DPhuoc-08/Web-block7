@@ -35,9 +35,10 @@ const listInclude = { chef: { select: { id: true, name: true } }, tags: TAG_SELE
 const toListItem = ({ tags, ...dish }) => ({ ...dish, tags: flatTags(tags) });
 
 // Danh sách có phân trang + tìm kiếm tại server (plan mục 5.2–5.4):
-//   ?mode=basic|advanced &q= &page= &pageSize= &sort=      (basic: thêm ?searchIn=name,tag cho trang admin)
+//   ?mode=basic|advanced &q= &by= &page= &pageSize= &sort=  (basic: thêm ?searchIn=name,tag cho trang admin)
 //   advanced thêm: &tag=<id> &minPrice= &maxPrice= &available=true|false
 //   ?mode=fulltext|fuzzy &q= (bắt buộc) &page= &pageSize=   — xếp theo điểm phù hợp, mỗi món có thêm `score`
+//   &by=name|ingredient|chef: q so với tên món (mặc định) / tên nguyên liệu / tên đầu bếp — basic, advanced, fuzzy
 // Trả data: { items, total, page, pageSize }. Không có kết quả / trang vượt phạm vi vẫn là thành công (items: []).
 router.get("/", async (req, res) => {
   const query = parseListQuery(req.query);
@@ -69,9 +70,13 @@ router.get("/", async (req, res) => {
 
 // Full-text / fuzzy: câu SQL (search/*.js) trả total + id và điểm của trang, đã xếp theo điểm.
 // Prisma nạp phần hiển thị (tag, đầu bếp) theo danh sách id, rồi giữ đúng thứ tự điểm của SQL.
-async function textSearch(res, { mode, q, page, pageSize }) {
-  const search = mode === "fulltext" ? fulltextPage : fuzzyPage;
-  const { total, hits } = await search(prisma, q, (page - 1) * pageSize, pageSize);
+// Fuzzy chọn câu SQL theo `by` (tên món / nguyên liệu / đầu bếp, plan mục 14); fulltext luôn là tên + mô tả món.
+const FUZZY_BY = { name: "dishName", ingredient: "dishIngredient", chef: "dishChef" };
+
+async function textSearch(res, { mode, q, by, page, pageSize }) {
+  const skip = (page - 1) * pageSize;
+  const { total, hits } =
+    mode === "fulltext" ? await fulltextPage(prisma, q, skip, pageSize) : await fuzzyPage(prisma, FUZZY_BY[by], q, skip, pageSize);
   const rows = hits.length ? await prisma.dish.findMany({ where: { id: { in: hits.map((h) => h.id) } }, include: listInclude }) : [];
   const byId = new Map(rows.map((row) => [row.id, row]));
   // Món vừa bị xoá giữa hai câu truy vấn → bỏ qua, không làm hỏng cả trang.

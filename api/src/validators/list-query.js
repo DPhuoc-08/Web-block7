@@ -28,6 +28,11 @@ export const SORTS = {
 // Trang admin tìm thêm theo tên tag (giữ từ block6, mở rộng của basic). Khoá lạ bị bỏ qua như block6.
 const SEARCHABLE = ["name", "tag"];
 
+// `by` (plan mục 14): q so khớp với cột nào — tên món (mặc định, đúng đề), tên nguyên liệu, tên đầu bếp.
+// Dùng ở basic, advanced, fuzzy; fulltext bỏ qua (document của fulltext là tên + mô tả món).
+// Khác `searchIn` (admin, bỏ qua khoá lạ): `by` là lựa chọn của khách trên URL → giá trị lạ báo lỗi để biết không được áp dụng.
+export const SEARCH_BY = ["name", "ingredient", "chef"];
+
 const NON_NEGATIVE_INT = /^(0|[1-9]\d*)$/;
 
 // Trả { value } — value = null khi thiếu/trắng — hoặc { error } khi là mảng (?x=a&x=b) hay kiểu lạ.
@@ -83,7 +88,7 @@ export function parseListQuery(query) {
   const raw = {
     mode: read("mode"), q: read("q"), sort: read("sort"),
     tag: read("tag"), minPrice: read("minPrice"), maxPrice: read("maxPrice"), available: read("available"),
-    searchIn: read("searchIn"),
+    searchIn: read("searchIn"), by: read("by"),
   };
 
   const mode = raw.mode ?? "basic";
@@ -94,13 +99,19 @@ export function parseListQuery(query) {
   const sort = raw.sort ?? "";
   if (!Object.hasOwn(SORTS, sort)) errors.sort = "Cách sắp xếp không hợp lệ.";
 
-  const result = { mode, q: raw.q, page, pageSize, sort, searchIn: ["name"], tagId: null, minPrice: null, maxPrice: null, available: null, errors };
+  const result = { mode, q: raw.q, page, pageSize, sort, by: "name", searchIn: ["name"], tagId: null, minPrice: null, maxPrice: null, available: null, errors };
+
+  if (mode !== "fulltext" && raw.by !== null) {
+    if (SEARCH_BY.includes(raw.by)) result.by = raw.by;
+    else errors.by = "Chỉ tìm theo tên món, nguyên liệu hoặc đầu bếp.";
+  }
 
   // Full-text / fuzzy cần từ khoá: q trống không được âm thầm thành "lấy tất cả".
   if (TEXT_MODES.includes(mode) && raw.q === null && !errors.q) errors.q = "Nhập từ khoá để tìm.";
 
-  // Basic chỉ đọc q (+ searchIn của admin). Tham số của advanced gửi kèm basic bị bỏ qua, không lỗi.
-  if (mode === "basic" && raw.searchIn !== null) {
+  // Basic chỉ đọc q, by (+ searchIn của admin). Tham số của advanced gửi kèm basic bị bỏ qua, không lỗi.
+  // searchIn (tên + tag) chỉ có nghĩa khi q so với tên món.
+  if (mode === "basic" && result.by === "name" && raw.searchIn !== null) {
     const fields = raw.searchIn.split(",").filter((f) => SEARCHABLE.includes(f));
     if (fields.length) result.searchIn = [...new Set(fields)];
   }
@@ -143,14 +154,22 @@ export const containsIn = (field) => (s) => ({ [field]: { contains: s, mode: "in
 export const searchWhere = (q, matchers) => (q ? { OR: matchers.map((match) => match(escapeLike(q))) } : {});
 
 // Điều kiện Prisma cho basic / advanced. Các tiêu chí nối bằng AND; tiêu chí null = không áp dụng.
-// `q` là literal contains trên tên, không phân biệt hoa thường (ILIKE, tham số bind).
-export function basicAdvancedWhere({ q, searchIn, tagId, minPrice, maxPrice, available }) {
+// `q` là literal contains, không phân biệt hoa thường (ILIKE, tham số bind), trên cột do `by` chọn:
+//   name → tên món (hoặc tên món / tên tag với searchIn của admin)
+//   ingredient → món có ÍT NHẤT MỘT nguyên liệu tên chứa q (EXISTS trên dish_ingredients → mỗi món đếm một lần)
+//   chef → món do đầu bếp tên chứa q phụ trách
+export function basicAdvancedWhere({ q, by, searchIn, tagId, minPrice, maxPrice, available }) {
   const nameOrTag = {
     name: (s) => ({ name: { contains: s, mode: "insensitive" } }),
     tag: (s) => ({ tags: { some: { tag: { name: { contains: s, mode: "insensitive" } } } } }),
   };
+  const textMatch = {
+    name: (s) => ({ OR: searchIn.map((f) => nameOrTag[f](s)) }),
+    ingredient: (s) => ({ ingredients: { some: { ingredient: { name: { contains: s, mode: "insensitive" } } } } }),
+    chef: (s) => ({ chef: { name: { contains: s, mode: "insensitive" } } }),
+  };
   const conditions = [];
-  if (q !== null) conditions.push({ OR: searchIn.map((f) => nameOrTag[f](escapeLike(q))) });
+  if (q !== null) conditions.push(textMatch[by](escapeLike(q)));
   if (tagId !== null) conditions.push({ tags: { some: { tagId } } });
   if (minPrice !== null) conditions.push({ price: { gte: minPrice } });
   if (maxPrice !== null) conditions.push({ price: { lte: maxPrice } });

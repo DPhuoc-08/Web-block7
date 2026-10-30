@@ -7,7 +7,8 @@
 #   ./scripts/check-api.sh D          → chỉ phần D (search basic / advanced — block7)
 #   ./scripts/check-api.sh E          → chỉ phần E (tag của món và chuyên môn đầu bếp — block7)
 #   ./scripts/check-api.sh F          → chỉ phần F (phân trang admin đầu bếp, nguyên liệu — plan mục 12)
-# Phần C, D, F đối chiếu với dữ liệu seed (1.200 món, 60 đầu bếp, 250 nguyên liệu) → chạy `npx prisma db seed` trước.
+#   ./scripts/check-api.sh G          → chỉ phần G (tìm theo nguyên liệu, đầu bếp ?by= — plan mục 14)
+# Phần C, D, F, G đối chiếu với dữ liệu seed (1.200 món, 60 đầu bếp, 250 nguyên liệu) → chạy `npx prisma db seed` trước.
 # Kiểm tra 500 (mất kết nối DB): chạy thêm một API với DATABASE_URL sai ở cổng khác rồi đặt
 #   API_BROKEN=http://localhost:3001 ./scripts/check-api.sh A
 # Script tự tạo rồi tự xoá món/đầu bếp/nguyên liệu test. Tag test KHÔNG xoá được (API không có xoá tag)
@@ -597,6 +598,52 @@ part_f() {
   expect "/api/ingredients?q=lít → total 6 (khớp SQL)" 200 '.data.total == 6'
 }
 
+part_g() {
+  echo "== G. Tìm theo nguyên liệu, đầu bếp (?by=, plan mục 14) — số kỳ vọng đếm bằng SQL trên seed"
+  local all by_score basic
+  by_score='[range(1; length) as $i | (.[$i-1].score > .[$i].score) or (.[$i-1].score == .[$i].score and .[$i-1].id < .[$i].id)] | all'
+  req GET "/api/dishes?q=t%C3%B4m&by=ingredient&pageSize=100"
+  basic=$(jq -c '{total: .data.total, ids: [.data.items[].id]}' <<<"$BODY")
+  expect "basic by=ingredient q=tôm → 149 món (có ít nhất một nguyên liệu chứa \"tôm\", kể cả Mắm tôm)" 200 '.data.total == 149'
+  req GET "/api/dishes?mode=advanced&q=t%C3%B4m&by=ingredient&pageSize=100"
+  expect "advanced chỉ có cùng q, by → cùng total, cùng danh sách id với basic" 200 "({total: .data.total, ids: [.data.items[].id]}) == $basic"
+  all=$(collect "q=t%C3%B4m&by=ingredient")
+  BODY=$all; STATUS=200
+  expect "  …gom mọi trang: đủ 149 id, tăng dần, không trùng (món nhiều nguyên liệu khớp vẫn chỉ một lần)" 200 '([.[].id] | length) == 149 and ([.[].id] == ([.[].id] | unique))'
+  req GET "/api/dishes?mode=advanced&q=t%C3%B4m&by=ingredient&tag=12&maxPrice=60000"
+  expect "advanced by=ingredient q=tôm + Hải sản + giá ≤ 60.000 → 28 món (AND)" 200 '.data.total == 28'
+  req GET "/api/dishes?q=mai&by=chef&pageSize=100"
+  expect "by=chef q=mai → 122 món, mọi món do đầu bếp tên chứa \"mai\" phụ trách" 200 '.data.total == 122 and all(.data.items[]; .chef.name | test("mai"; "i"))'
+  req GET "/api/dishes?q=B%C3%B9i%20Thanh%20T%C3%A2m&by=chef"
+  expect "by=chef \"Bùi Thanh Tâm\" (không phụ trách món nào) → ok, items [], total 0" 200 '.ok and .data.items == [] and .data.total == 0'
+  for v in %25 _ %5C; do
+    for b in ingredient chef; do
+      req GET "/api/dishes?q=$v&by=$b"
+      expect "by=$b q=$v (literal) → total 0, không phải mọi món" 200 '.ok and .data.total == 0'
+    done
+  done
+  req GET "/api/dishes?q=ph%E1%BB%9F&by=name"
+  expect "by=name tường minh → giống mặc định (tên món)" 200 ".data.total == $(curl -s "$API/api/dishes?q=ph%E1%BB%9F" | jq .data.total)"
+  for bad in "by=abc" "by=Ingredient" "by=name&by=chef"; do
+    req GET "/api/dishes?q=x&$bad"
+    expect_code "$bad → VALIDATION_FAILED fields.by" VALIDATION_FAILED '(.error.fields | keys) == ["by"]'
+  done
+  req GET "/api/dishes?mode=fulltext&q=t%C3%B4m&by=abc"
+  expect "fulltext bỏ qua by (document luôn là tên + mô tả món), không lỗi" 200 ".ok and .data.total == $(curl -s "$API/api/dishes?mode=fulltext&q=t%C3%B4m" | jq .data.total)"
+  req GET "/api/dishes?q=m%C3%B3n%20n%C6%B0%E1%BB%9Bc&by=chef&searchIn=name,tag"
+  expect "searchIn của admin chỉ áp dụng khi by=name (by=chef q=món nước → 0)" 200 '.data.total == 0'
+
+  all=$(collect "mode=fuzzy&q=T%C3%B4m%20x%C3%BA&by=ingredient")
+  BODY=$all; STATUS=200
+  expect "fuzzy by=ingredient \"Tôm xú\" (gõ sai) qua mọi trang: 136 món, điểm ≥ 0.3, theo điểm rồi id, không trùng" 200 "length == 136 and all(.[]; .score >= 0.3) and ($by_score) and ([.[].id] | unique | length) == length"
+  req GET "/api/dishes?mode=fuzzy&q=T%C3%B4m%20x%C3%BA&by=ingredient"
+  expect "  …total 136 khớp số món gom được, điểm đầu 0.4 (Tôm sú / Tôm thẻ)" 200 '.data.total == 136 and .data.items[0].score == 0.4'
+  req GET "/api/dishes?mode=fuzzy&q=Tr%E1%BA%A7n%20Th%E1%BB%8B%20B%C3%ADt&by=chef&pageSize=100"
+  expect "fuzzy by=chef \"Trần Thị Bít\" → 21 món của Trần Thị Bích, cùng điểm 0.667, id tăng dần" 200 '.data.total == 21 and all(.data.items[]; .chef.name == "Trần Thị Bích" and .score == 0.667) and ([.data.items[].id] == ([.data.items[].id] | sort))'
+  req GET "/api/dishes?mode=fuzzy&q=%20&by=chef"
+  expect_code "fuzzy by=chef q trắng → VALIDATION_FAILED fields.q" VALIDATION_FAILED '(.error.fields | keys) == ["q"]'
+}
+
 case $PART in
   A) part_a ;;
   B) part_b ;;
@@ -604,7 +651,8 @@ case $PART in
   D) part_d ;;
   E) part_e ;;
   F) part_f ;;
-  *) part_a; part_b; part_c; part_d; part_e; part_f ;;
+  G) part_g ;;
+  *) part_a; part_b; part_c; part_d; part_e; part_f; part_g ;;
 esac
 
 echo

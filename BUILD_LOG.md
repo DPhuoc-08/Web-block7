@@ -809,3 +809,46 @@ Phương án bỏ:
 - Giữ có chủ ý: `?page=101` vẫn "Trang 101 không có món nào."; admin vẫn "Món 1–20 trong 1200 món".
 - 375px không cuộn ngang. Không lỗi console. `vite build` thành công.
 - Chạy lại gom id qua 3 kiểu UI (`mode=advanced&tag=12&sort=gia-tang`): **386/386** cả 3 kiểu (cách nhận biết hết danh sách đổi chữ nhưng vẫn là `.load-end`).
+
+## Bước 28 — API: tìm theo nguyên liệu, đầu bếp (`?by=`) cho basic, advanced, fuzzy (plan mục 14)
+**Bối cảnh (30/10/2026):** yêu cầu bổ sung: khách tìm món theo nguyên liệu, theo đầu bếp; admin có full-text, fuzzy. Nhóm chốt (plan 14.1):
+- **dùng chung ô tìm tên món + ô chọn "Tìm theo: Tên món / Nguyên liệu / Đầu bếp"**, mặc định Tên món;
+- cơ bản / nâng cao: literal contains; **gần đúng cũng tìm được theo nguyên liệu, đầu bếp**; toàn văn giữ tên + mô tả món;
+- admin món có 3 kiểu tìm; admin đầu bếp, nguyên liệu thêm gần đúng theo tên; toàn văn / gần đúng ở admin xếp theo điểm rồi id.
+
+Phương án bỏ:
+- hai ô riêng "Nguyên liệu", "Đầu bếp" trong bộ lọc nâng cao (thêm ô nhập; nhóm muốn dùng chung ô tìm);
+- gộp một từ khoá khớp tên **hoặc** nguyên liệu **hoặc** đầu bếp: đổi nghĩa basic của đề ("tìm một phần tên"), kết quả lẫn, khách không biết vì sao món khớp;
+- chọn nguyên liệu / đầu bếp theo id: ô chọn 250 nguyên liệu khó dùng trên điện thoại;
+- link từ trang chi tiết sang thực đơn đã lọc (14.d cũ): không có trong yêu cầu — agent tự thêm vào bảng đề xuất, nhóm hỏi lại và bỏ.
+
+**Quyết định:**
+- Tham số mới tên `by` (không dùng lại `searchIn` của admin): `searchIn` là danh sách, khoá lạ bị bỏ qua (giữ từ block6); `by` là một lựa chọn của khách trên URL, giá trị lạ → `VALIDATION_FAILED fields.by` theo quy tắc block7.
+- `by` chỉ đổi **cột mà `q` so khớp**; tag, giá, trạng thái, sort, phân trang giữ nguyên → basic và advanced chỉ có cùng `q` + `by` vẫn cùng kết quả.
+- `fulltext` bỏ qua `by` (tham số không thuộc chế độ, như `sort`). `searchIn=name,tag` chỉ áp dụng khi `by=name`.
+
+**Đã làm:**
+- `validators/list-query.js`: `SEARCH_BY`; đọc + validate `by` (trừ fulltext); `basicAdvancedWhere` chọn điều kiện theo `by`:
+  - `ingredient` → `ingredients: { some: { ingredient: { name: { contains } } } }` (Prisma sinh `EXISTS` → mỗi món đếm một lần);
+  - `chef` → `chef: { name: { contains } } }`;
+  - giá trị vẫn qua `escapeLike`, cùng `where` cho `count` và `findMany`.
+- `search/fuzzy.js` dùng chung: `FUZZY_MATCHERS` là các đoạn `Prisma.sql` viết sẵn (tên món, nguyên liệu của món, đầu bếp của món, và sẵn cho bước 31: tên đầu bếp, tên nguyên liệu). Tên bảng/cột là hằng trong code, chỉ `q` là tham số bind; `fuzzyPage(prisma, matcher, q, skip, take)` giữ nguyên `set_config(..., true)` trong cùng transaction và câu `total` + trang.
+  - Nguyên liệu: `GROUP BY "dishId"`, điểm = `max(similarity)` — món có nhiều nguyên liệu khớp ("Tôm sú", "Tôm thẻ") vẫn chỉ một dòng.
+  - Đầu bếp: mọi món của một người cùng điểm → xếp theo id.
+- `routes/dishes.js`: `textSearch` chọn matcher theo `by`.
+- `check-api.sh`: **phần G** (22 kiểm tra).
+
+**Đã kiểm tra:**
+- Database: host `aws-0-ap-southeast-1.pooler.supabase.com`, ref `ovirbpyprylgaqgvgzil` (block7).
+- Số kỳ vọng đếm bằng SQL trên seed (`node scripts/run-sql.js`), khớp API:
+  - `by=ingredient&q=tôm` → 149 (SQL `count(DISTINCT dishId)` nguyên liệu ILIKE `%tôm%`: 149); 38 món trong đó chỉ khớp nhờ "Mắm tôm" / "Bánh phồng tôm" — đúng nghĩa literal contains đã chốt;
+  - `by=ingredient&q=tôm` + Hải sản + `maxPrice=60000` → 28 (SQL: 28);
+  - `by=chef&q=mai` → 122 (SQL: 122); "Bùi Thanh Tâm" (0 món) → `items: []`, `total: 0`;
+  - fuzzy `by=ingredient` "Tôm xú" → 136 (SQL `similarity ≥ 0.3`: 136), điểm đầu 0.4; fuzzy `by=chef` "Trần Thị Bít" → 21 món của Trần Thị Bích (SQL: 21), cùng điểm 0.667, id tăng dần.
+- Gom mọi trang `by=ingredient&q=tôm`: đủ 149 id, tăng dần, không trùng.
+- `q=%`, `_`, `\` với `by=ingredient` / `chef` → 0; `by=abc`, `by=Ingredient`, `by` lặp → `VALIDATION_FAILED fields.by`.
+- `check-api.sh`: **273/273 đạt** (251 cũ + 22 phần G).
+
+**Điều chưa chắc:** fuzzy so với **cả** tên nên từ khoá ngắn so với tên dài có thể dưới 0.3 (đo thật "Bích" ↔ "Trần Thị Bích" = 0.385 vẫn khớp; plan ban đầu ghi "Bích" là ví dụ không khớp — sai, đã sửa plan theo số đo).
+
+**Trạng thái:** SPA chưa có ô "Tìm theo" → bước 29. Chưa seed lại (còn test ghi ở bước 31) — seed ở bước 33.
