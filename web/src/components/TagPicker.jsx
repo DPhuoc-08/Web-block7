@@ -3,13 +3,18 @@ import { createTag } from "../api/tags.js";
 import { plain } from "../format.js";
 import QuickAdd from "./QuickAdd.jsx";
 
+const SEARCH_FROM = 24;
+
 const TAG_FIELDS = [{ key: "name", label: "Tên tag", placeholder: "Ví dụ: Món chay", requiredMessage: "Tên tag không được để trống." }];
 
 // Chọn nhiều tag (loại món của món, hoặc chuyên môn của đầu bếp): tick ô → mảng id gửi lên API (`tagIds`).
 // - tags:      danh sách tag đã tải khi mở form (GET /api/tags)
 // - selected:  mảng id đang chọn (state của form bên ngoài, gửi khi lưu)
 // - onToggle(id), onCreated(tag): form bên ngoài cập nhật `selected`
-// Ô tìm chỉ lọc danh sách đã tải (không gọi API); tag đã tick mà bị ẩn vẫn nằm trong `selected` → vẫn được gửi.
+// Hiển thị dạng nút viên (plan mục 16; trước là lưới ô tick cao ~200px cho 16 tag): mỗi nút vẫn là một checkbox
+// thật nằm trong <label> (bàn phím, trình đọc màn hình, focus khi lỗi giữ như cũ), CSS chỉ đổi hình dáng.
+// Ô tìm chỉ hiện khi có nhiều tag (> 24) và chỉ lọc danh sách đã tải (không gọi API); tag đã tick mà bị ẩn vẫn
+// nằm trong `selected` → vẫn được gửi.
 // Tag chưa có → "+ Thêm tag": POST /api/tags ngay trong form, tag mới vào danh sách và được tick sẵn.
 export default function TagPicker({ legend, tags, selected, error, onToggle, onCreated }) {
   // Danh sách của form: bắt đầu từ dữ liệu đã tải, thêm tag mới tạo (state cục bộ, không phải kho dùng chung).
@@ -34,19 +39,31 @@ export default function TagPicker({ legend, tags, selected, error, onToggle, onC
         {legend} <small className="muted">(chọn ít nhất 1)</small>
       </legend>
       {error && <p className="error">{error}</p>}
-      <div className="choice-tools">
-        {/* Enter trong ô tìm không được gửi form bên ngoài. */}
-        <input
-          type="search"
-          aria-label="Tìm tag"
-          placeholder="Tìm tag, ví dụ: nước, miền"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-          data-skip-error-focus
-        />
-        <button type="button" className="btn" onClick={() => (setAdding(true), setAdded(null))} disabled={adding} aria-expanded={adding}>
-          + Thêm tag
+      {list.length > SEARCH_FROM && (
+        <div className="choice-tools">
+          {/* Enter trong ô tìm không được gửi form bên ngoài. */}
+          <input
+            type="search"
+            aria-label="Tìm tag"
+            placeholder="Tìm tag, ví dụ: nước, miền"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+            data-skip-error-focus
+          />
+        </div>
+      )}
+      {q && shown.length === 0 && <p className="muted">Không có tag nào khớp “{q}”.</p>}
+      <div className="pill-list">
+        {shown.map((t) => (
+          <label key={t.id} className="pill-choice">
+            <input type="checkbox" name="tagIds" value={t.id} checked={selected.includes(t.id)} onChange={() => onToggle(t.id)} />
+            <span>{t.name}</span>
+          </label>
+        ))}
+        {/* Thêm tag mới đứng cuối dãy tag, cùng hình dáng nút viên nhưng viền đứt. */}
+        <button type="button" className="pill-add" onClick={() => (setAdding(true), setAdded(null))} disabled={adding} aria-expanded={adding}>
+          + Tag mới
         </button>
       </div>
       {adding && (
@@ -69,15 +86,6 @@ export default function TagPicker({ legend, tags, selected, error, onToggle, onC
         Đã chọn {selected.length} tag
         {q && ` · đang hiện ${shown.length}/${list.length}`}
       </p>
-      {q && shown.length === 0 && <p className="muted">Không có tag nào khớp “{q}”.</p>}
-      <div className="choice-grid compact">
-        {shown.map((t) => (
-          <label key={t.id} className="choice">
-            <input type="checkbox" name="tagIds" value={t.id} checked={selected.includes(t.id)} onChange={() => onToggle(t.id)} />
-            <span>{t.name}</span>
-          </label>
-        ))}
-      </div>
     </fieldset>
   );
 }

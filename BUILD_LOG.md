@@ -961,3 +961,23 @@ Phương án bỏ:
 - `screens/tim-theo-nguyen-lieu.png`, `admin-gan-dung-mon.png`, `admin-gan-dung-nguyen-lieu.png`.
 - `evidence/README.md`: mục "Bổ sung 30/10/2026".
 - Sự cố khi thu: lần đầu log SQL trống vì một API phụ từ lần chạy trước vẫn giữ cổng 3001 (`kill %1` không dừng được), request đi vào tiến trình cũ có stdout trỏ tới file đã xoá. Dừng tiến trình theo pid rồi thu lại; không ảnh hưởng code.
+
+## Bước 34 — Form món, form đầu bếp: chọn nguyên liệu, đầu bếp, tag gọn lại (plan mục 16)
+**Bối cảnh (30/10/2026):** nhóm thấy trải nghiệm thêm món rất tệ. Đo: form thêm món cao **6.978px** ở 1280px, **11.943px** ở 375px — lưới 60 radio đầu bếp + lưới 250 ô tick nguyên liệu. Nhóm yêu cầu sửa ngay, chỉ test phần sửa, giới hạn thời gian; sau đó yêu cầu thêm: chọn đầu bếp "y hệt như thêm nguyên liệu".
+
+**Đã làm:**
+- `components/ComboPicker.jsx` (mới, dùng chung): chip đã chọn + ô gõ có gợi ý (combobox `role=combobox`/`listbox`, `aria-activedescendant`), tối đa 8 gợi ý, so khớp bỏ dấu (`plain`); mục đầu tô sẵn → Enter chọn; ↑/↓, Esc; Backspace ở ô trống bỏ chip cuối; Enter **không** gửi form món; chọn bằng `mousedown` để kịp trước `blur`; tên chưa có (so bỏ dấu) → "+ Thêm … mới “…”" (chữ trong ô được xoá, tên chuyển sang khung thêm nhanh); `single` cho đầu bếp (chọn người khác là thay); `showOnEmpty` (bấm ô trống thấy gợi ý).
+- `DishFormPage.jsx`:
+  - nguyên liệu → `ComboPicker` (đơn vị là chữ phụ), giữ thêm nhanh bằng `QuickAdd`;
+  - đầu bếp → `ComboPicker single showOnEmpty`, gợi ý theo `sortChefs` (đúng chuyên môn trước, chữ phụ "· đúng chuyên môn"); thêm đầu bếp mới bằng `QuickAdd` với `tagIds` = tag đang chọn của món (API bắt buộc ≥ 1 chuyên môn) — chưa có tag thì không mở khung, báo "Chọn tag của món trước…"; danh sách đầu bếp, tag giữ cục bộ trong form (tag vừa tạo cũng có tên trong tiêu đề khung thêm đầu bếp).
+- `TagPicker.jsx` (form món + form đầu bếp): nút viên — vẫn là checkbox thật trong `<label>` (bàn phím, focus khi lỗi giữ nguyên), "✓" khi chọn, "+ Tag mới" viền đứt cuối dãy, khung thêm tag ngay dưới dãy; ô tìm tag chỉ hiện khi > 24 tag.
+- CSS: `.pill-*`, `.chip*`, `.combo*`; chuyển màu 150ms (đã có quy tắc giảm chuyển động).
+
+**Phương án bỏ:** ô `<select>` có nhóm cho đầu bếp (làm ở lượt đầu, nhóm yêu cầu đổi sang cùng kiểu với nguyên liệu); giữ lưới ô tick nhưng thu gọn (vẫn 250 ô).
+
+**Đã kiểm tra (chỉ phần sửa, Chrome headless, không ghi database):**
+- Lượt 1 (nguyên liệu + tag, 15 ca đạt rồi kịch bản treo): form cao **1.463px** (1280) / **1.669px** (375), không cuộn ngang; 16 nút tag, bấm chọn được; gõ "tôm" → ≤ 8 gợi ý; chọn bằng phím / chuột; đã chọn không còn trong gợi ý; Backspace, × bỏ chip; tên mới → khung thêm nhanh điền sẵn tên; thiếu nguyên liệu → con trỏ vào ô gõ nguyên liệu. Kịch bản treo ở ca chuyển sang form sửa: hộp thoại "rời trang khi chưa lưu" (form đang có dữ liệu) chặn lệnh chuyển trang của kịch bản — không phải lỗi app.
+- Lượt 2 (sau khi đổi đầu bếp sang `ComboPicker`, **15/15 đạt**): form sửa món 1 có chip đầu bếp Nguyễn Văn An + 4 chip nguyên liệu đúng API; bấm ô đầu bếp → 8 gợi ý; chọn tag Lẩu → gợi ý đầu "đúng chuyên môn"; "tran thi" (không dấu) → Trần Thị Bích; Enter chọn; chọn "Mai" thay người cũ (vẫn 1 chip); Backspace bỏ; "Đầu Bếp Thử" → khung thêm với tiêu đề "chuyên môn: Lẩu"; bỏ hết tag → báo chọn tag trước; tên đã có ("nguyen van an") → không mời thêm mới; 375px không cuộn ngang; không lỗi console.
+- Lượt 2 phát hiện 2 lỗi của app, đã sửa: (1) sau "+ Thêm … mới" chữ còn trong ô → gõ tiếp bị nối ("tran thiMa…") → xoá chữ khi mở khung thêm; (2) `aria-label` danh sách chip viết thường chữ đầu. Các ca còn lại chưa đạt ở lần đầu do kịch bản bấm ↓ trước Enter (nhảy qua mục đầu đã tô sẵn).
+- Ghi chú trung thực: ca "lưu khi chưa chọn đầu bếp" — lúc đó chưa chọn tag nên con trỏ tới nhóm Tag (lỗi đầu tiên trên form); kiểm tra thực tế là lỗi "Vui lòng chọn đầu bếp phụ trách" có hiện, chưa kiểm riêng ca con trỏ vào ô đầu bếp.
+- `vite build` thành công. Không chạy lại nghiệm thu toàn bộ (nhóm yêu cầu chỉ test phần sửa); chưa test lưu thật một món qua form mới (logic gửi `toBody` không đổi).

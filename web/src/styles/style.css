@@ -280,6 +280,35 @@ td.actions .btn + .btn { margin-left: 6px; }
 .choice-tools input { flex: 1 1 220px; min-width: 0; }
 .choice-summary { margin: 0 0 8px; font-size: .85rem; }
 .choice-added { margin: 0 0 8px; color: var(--ok); font-size: .88rem; font-weight: 600; }
+
+/* Form món, form đầu bếp (plan mục 16): tag dạng nút viên — checkbox thật nằm trong label, chỉ ẩn ô vuông */
+.pill-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.pill-choice { position: relative; display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--surface); font-size: .9rem; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
+.pill-choice input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.pill-choice:hover { border-color: var(--primary); }
+.pill-choice:has(input:checked) { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+.pill-choice:has(input:checked) span::before { content: "✓ "; }
+.pill-choice:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+.choice-group.invalid .pill-choice { border-color: var(--danger); }
+.pill-add { min-height: 40px; padding: 0 14px; border: 1px dashed var(--border-strong); border-radius: 999px; background: none; color: var(--primary); font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.pill-add:hover:not(:disabled) { border-color: var(--primary); }
+.pill-add:disabled { opacity: .5; cursor: default; }
+
+/* Nguyên liệu: chip đã chọn + ô gõ có gợi ý (combobox) */
+.chip-list { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0 0 10px; padding: 0; }
+.chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 12px; min-height: 36px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-dark); font-size: .88rem; font-weight: 600; }
+.chip-meta { margin-left: 6px; font-weight: 400; color: var(--muted); font-size: .8rem; }
+.chip-remove { width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: inherit; font-size: 1.15rem; line-height: 1; cursor: pointer; }
+.chip-remove:hover { background: rgba(31, 91, 67, .12); }
+.combo { position: relative; margin-bottom: 8px; }
+.combo input { width: 100%; }
+.combo-list { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0, 0, 0, .08); max-height: 320px; overflow-y: auto; }
+.combo-option { display: flex; align-items: baseline; gap: 6px; min-height: 40px; padding: 9px 10px; border-radius: 6px; cursor: pointer; font-size: .92rem; }
+.combo-option small { color: var(--muted); font-size: .8rem; }
+.combo-option.active { background: var(--primary-soft); }
+.combo-option.new { color: var(--primary); font-weight: 600; border-top: 1px solid var(--border); border-radius: 0 0 6px 6px; }
 /* Khung thêm nhanh nguyên liệu trong form món (không phải <form> lồng nhau). */
 .quick-add { display: grid; gap: 10px; margin-bottom: 10px; padding: 12px; border: 1px dashed var(--border-strong); border-radius: 8px; background: var(--surface-2); }
 .quick-add-title { margin: 0; font-weight: 600; font-size: .92rem; }

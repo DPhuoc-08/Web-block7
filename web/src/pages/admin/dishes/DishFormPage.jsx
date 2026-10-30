@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { getDish, createDish, updateDish } from "../../../api/dishes.js";
-import { listAllChefs } from "../../../api/chefs.js";
+import { listAllChefs, createChef } from "../../../api/chefs.js";
 import { listAllIngredients, createIngredient } from "../../../api/ingredients.js";
 import { listTags } from "../../../api/tags.js";
 import { isBusiness } from "../../../api/client.js";
@@ -13,15 +13,17 @@ import { FieldError, FormAlert, generalMessage } from "../../../components/FormB
 import DishImage from "../../../components/DishImage.jsx";
 import QuickAdd from "../../../components/QuickAdd.jsx";
 import TagPicker from "../../../components/TagPicker.jsx";
+import ComboPicker from "../../../components/ComboPicker.jsx";
 import LeaveConfirm from "../../../components/LeaveConfirm.jsx";
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges.js";
 import { useBackTo, withFlash } from "../../../hooks/useBackTo.js";
-import { plain, tagNames } from "../../../format.js";
+import { tagNames } from "../../../format.js";
 
 const INGREDIENT_FIELDS = [
   { key: "name", label: "Tên nguyên liệu", requiredMessage: "Tên nguyên liệu không được để trống." },
   { key: "unit", label: "Đơn vị", placeholder: "Ví dụ: kg, bó" },
 ];
+const CHEF_FIELDS = [{ key: "name", label: "Tên đầu bếp", requiredMessage: "Tên đầu bếp không được để trống." }];
 const createIngredientFrom = (v) => createIngredient({ name: v.name, unit: v.unit.trim() === "" ? null : v.unit });
 
 // Form thêm (/admin/dishes/new) và sửa (/admin/dishes/:id/edit) món.
@@ -126,17 +128,19 @@ function DishForm({ id, dish, tags, chefs, ingredients }) {
   // (state `submitting` chỉ dùng để hiển thị nút bị khoá).
   const busy = useRef(false);
   const { panelRef, showFirstError } = useFocusFirstError();
-  // Ô tìm nguyên liệu chỉ lọc danh sách đã tải khi mở form (không gọi API). Ô đã tick mà bị ẩn vẫn nằm trong
-  // values.ingredientIds → vẫn được gửi khi lưu.
-  const [ingredientQuery, setIngredientQuery] = useState("");
   // Danh sách nguyên liệu của form: bắt đầu từ dữ liệu đã tải, thêm bản ghi mới khi admin thêm nhanh ngay trong form
   // (state cục bộ của trang, không phải kho dùng chung — trang khác vẫn tự tải từ API).
   const [ingredientList, setIngredientList] = useState(ingredients);
-  const [addingIngredient, setAddingIngredient] = useState(false);
+  // Thêm nhanh nguyên liệu chưa có: null = đang đóng; chuỗi = mở QuickAdd với tên lấy từ ô gõ của IngredientPicker.
+  const [addingIngredient, setAddingIngredient] = useState(null);
   const [addedIngredient, setAddedIngredient] = useState(null);
-  const shownIngredients = ingredientQuery.trim()
-    ? ingredientList.filter((i) => plain(i.name).includes(plain(ingredientQuery.trim())))
-    : ingredientList;
+  // Đầu bếp: cùng cách như nguyên liệu (danh sách cục bộ + thêm nhanh). Đầu bếp mới bắt buộc ≥ 1 chuyên môn (API)
+  // → lấy các tag đang chọn của món làm chuyên môn; chưa chọn tag thì không mở khung thêm, báo chọn tag trước.
+  const [chefList, setChefList] = useState(chefs);
+  // Tag đã biết của form (gồm tag vừa tạo trong TagPicker) — để ghi đúng tên chuyên môn của đầu bếp mới.
+  const [tagList, setTagList] = useState(tags);
+  const [addingChef, setAddingChef] = useState(null);
+  const [chefNotice, setChefNotice] = useState(null);
 
   function set(field, value) {
     setValues((v) => ({ ...v, [field]: value }));
@@ -151,11 +155,33 @@ function DishForm({ id, dish, tags, chefs, ingredients }) {
 
   // Tag vừa tạo trong TagPicker: tick sẵn. Cập nhật dạng hàm vì trong lúc chờ API admin có thể đã tick ô khác.
   function onTagCreated(tag) {
+    setTagList((list) => [...list, tag]);
     setValues((v) => ({ ...v, tagIds: [...v.tagIds, tag.id] }));
     setErrors(({ tagIds: _removed, ...rest }) => rest);
   }
 
-  const chefChoices = sortChefs(chefs, values.tagIds);
+  // Đầu bếp đúng chuyên môn lên đầu → cũng là thứ tự gợi ý của ô chọn đầu bếp.
+  const chefChoices = sortChefs(chefList, values.tagIds);
+  const fitCount = chefChoices.filter((c) => c.fits).length;
+  const chefMeta = (c) => `${tagNames(c.tags)}${c.fits ? " · đúng chuyên môn" : ""}`;
+  const selectedTagNames = tagList.filter((t) => values.tagIds.includes(t.id)).map((t) => t.name);
+
+  function onAddNewChef(name) {
+    if (values.tagIds.length === 0) {
+      setChefNotice("Chọn tag của món trước: đầu bếp mới nhận các tag đó làm chuyên môn.");
+      return;
+    }
+    setChefNotice(null);
+    setAddingChef(name);
+  }
+
+  // Đầu bếp vừa tạo (POST /api/chefs): thêm vào danh sách và chọn luôn (thay người đang chọn, nếu có).
+  function onChefCreated(created) {
+    setChefList((list) => [...list, created]);
+    set("chefId", String(created.id));
+    setAddingChef(null);
+    setChefNotice(`Đã thêm và chọn đầu bếp “${created.name}”.`);
+  }
 
   // Nguyên liệu vừa tạo (POST /api/ingredients đã trả về id): thêm vào danh sách và tick sẵn.
   // Cập nhật dạng hàm: trong lúc chờ API, admin có thể đã tick/bỏ tick ô khác — không được ghi đè.
@@ -163,8 +189,7 @@ function DishForm({ id, dish, tags, chefs, ingredients }) {
     setIngredientList((list) => [...list, created]);
     setValues((v) => ({ ...v, ingredientIds: [...v.ingredientIds, created.id] }));
     setErrors(({ ingredientIds: _removed, ...rest }) => rest);
-    setAddingIngredient(false);
-    setIngredientQuery(""); // xoá chữ tìm để thấy nguyên liệu mới (đã tick) trong danh sách
+    setAddingIngredient(null);
     setAddedIngredient(created.name);
   }
 
@@ -249,75 +274,71 @@ function DishForm({ id, dish, tags, chefs, ingredients }) {
             <FieldError message={errors.description} />
           </label>
 
-          {/* Đầu bếp phụ trách: chọn đúng 1 (radio). Gửi id dạng số; API kiểm tra id có thật.
-              Đầu bếp có chuyên môn trùng tag đã chọn được đưa lên đầu, kèm nhãn "Đúng chuyên môn". */}
+          {/* Đầu bếp phụ trách: chọn đúng 1 — cùng kiểu ô gõ có gợi ý như nguyên liệu (plan mục 16; trước là lưới 60 radio).
+              Gửi id dạng số; API kiểm tra id có thật. Người đúng chuyên môn (trùng tag đã chọn) đứng đầu gợi ý. */}
           <fieldset className={`choice-group${errors.chefId ? " invalid" : ""}`}>
             <legend>Đầu bếp phụ trách</legend>
             {errors.chefId && <p className="error">{errors.chefId}</p>}
-            {values.tagIds.length === 0 && chefs.length > 0 && <p className="muted choice-summary">Chọn tag của món để thấy đầu bếp đúng chuyên môn ở đầu danh sách.</p>}
-            {chefs.length === 0 && (
-              <p className="muted">
-                Chưa có đầu bếp nào. <Link to="/admin/chefs/new">Thêm đầu bếp</Link> trước khi tạo món.
+            <ComboPicker
+              noun="đầu bếp"
+              single
+              showOnEmpty
+              items={chefChoices}
+              selected={values.chefId ? [Number(values.chefId)] : []}
+              meta={chefMeta}
+              placeholder="Gõ tên đầu bếp, hoặc bấm để xem gợi ý"
+              onAdd={(chefId) => (set("chefId", String(chefId)), setChefNotice(null))}
+              onRemove={() => set("chefId", "")}
+              onAddNew={onAddNewChef}
+            />
+            {addingChef !== null && (
+              <QuickAdd
+                key={addingChef}
+                title={`Thêm đầu bếp mới · chuyên môn: ${selectedTagNames.join(", ")}`}
+                fields={CHEF_FIELDS}
+                initialValues={{ name: addingChef }}
+                create={(v) => createChef({ name: v.name, tagIds: values.tagIds })}
+                onCreated={onChefCreated}
+                onCancel={() => setAddingChef(null)}
+              />
+            )}
+            {chefNotice && (
+              <p className={chefNotice.startsWith("Đã thêm") ? "choice-added" : "muted choice-summary"} role="status">
+                {chefNotice}
               </p>
             )}
-            <div className="choice-grid">
-              {chefChoices.map((c) => (
-                <label key={c.id} className="choice">
-                  <input type="radio" name="chefId" value={c.id} checked={values.chefId === String(c.id)} onChange={() => set("chefId", String(c.id))} />
-                  <span>
-                    <strong>{c.name}</strong>
-                    <small>{tagNames(c.tags)}</small>
-                    {c.fits && <small className="fit-label">Đúng chuyên môn</small>}
-                  </span>
-                </label>
-              ))}
-            </div>
+            <p className="muted choice-summary">
+              {values.tagIds.length === 0 ? "Chọn tag của món để thấy đầu bếp đúng chuyên môn ở đầu gợi ý." : `${fitCount} đầu bếp đúng chuyên môn với tag đã chọn.`}
+            </p>
           </fieldset>
 
-          {/* Nguyên liệu: tick nhiều ô → mảng id (API lưu vào bảng dish_ingredients). */}
+          {/* Nguyên liệu: chip đã chọn + ô gõ có gợi ý (plan mục 16; trước là lưới 250 ô tick) → mảng id
+              (API lưu vào bảng dish_ingredients). */}
           <fieldset className={`choice-group${errors.ingredientIds ? " invalid" : ""}`}>
             <legend>
               Nguyên liệu <small className="muted">(chọn ít nhất 1)</small>
             </legend>
             {errors.ingredientIds && <p className="error">{errors.ingredientIds}</p>}
-            {ingredientList.length === 0 && (
-              <p className="muted">
-                Chưa có nguyên liệu nào. <Link to="/admin/ingredients/new">Thêm nguyên liệu</Link> trước khi tạo món.
-              </p>
-            )}
-            <div className="choice-tools">
-              {/* Enter trong ô tìm không được gửi form món (ô này nằm trong <form> của món). */}
-              {ingredientList.length > 0 && (
-                <input
-                  type="search"
-                  aria-label="Tìm nguyên liệu"
-                  placeholder="Tìm nguyên liệu, ví dụ: tôm, hành"
-                  value={ingredientQuery}
-                  onChange={(e) => setIngredientQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-                  data-skip-error-focus
-                />
-              )}
-              {/* Nguyên liệu chưa có trong DB → thêm ngay tại đây, không rời form món. */}
-              <button
-                type="button"
-                className="btn"
-                onClick={() => (setAddingIngredient(true), setAddedIngredient(null))}
-                disabled={addingIngredient}
-                aria-expanded={addingIngredient}
-              >
-                + Thêm nguyên liệu
-              </button>
-            </div>
-            {addingIngredient && (
-              // Tên lấy sẵn từ ô tìm (thường admin vừa tìm không thấy).
+            <ComboPicker
+              noun="nguyên liệu"
+              items={ingredientList}
+              meta={(i) => i.unit}
+              placeholder="Gõ để tìm nguyên liệu, ví dụ: tôm, hành"
+              selected={values.ingredientIds}
+              onAdd={(ingredientId) => (toggle("ingredientIds", ingredientId), setAddedIngredient(null))}
+              onRemove={(ingredientId) => toggle("ingredientIds", ingredientId)}
+              onAddNew={(name) => (setAddingIngredient(name), setAddedIngredient(null))}
+            />
+            {addingIngredient !== null && (
+              // Tên lấy sẵn từ ô gõ (admin vừa tìm không thấy).
               <QuickAdd
+                key={addingIngredient}
                 title="Thêm nguyên liệu mới"
                 fields={INGREDIENT_FIELDS}
-                initialValues={{ name: ingredientQuery.trim() }}
+                initialValues={{ name: addingIngredient }}
                 create={createIngredientFrom}
                 onCreated={onIngredientCreated}
-                onCancel={() => setAddingIngredient(false)}
+                onCancel={() => setAddingIngredient(null)}
               />
             )}
             {addedIngredient && (
@@ -325,24 +346,9 @@ function DishForm({ id, dish, tags, chefs, ingredients }) {
                 Đã thêm và chọn nguyên liệu “{addedIngredient}”.
               </p>
             )}
-            {ingredientList.length > 0 && (
-              <p className="muted choice-summary" role="status">
-                Đã chọn {values.ingredientIds.length} nguyên liệu
-                {ingredientQuery.trim() && ` · đang hiện ${shownIngredients.length}/${ingredientList.length}`}
-              </p>
-            )}
-            {ingredientQuery.trim() && shownIngredients.length === 0 && <p className="muted">Không có nguyên liệu nào khớp “{ingredientQuery.trim()}”.</p>}
-            <div className="choice-grid compact">
-              {shownIngredients.map((i) => (
-                <label key={i.id} className="choice">
-                  <input type="checkbox" name="ingredientIds" value={i.id} checked={values.ingredientIds.includes(i.id)} onChange={() => toggle("ingredientIds", i.id)} />
-                  <span>
-                    {i.name}
-                    {i.unit && <small> {i.unit}</small>}
-                  </span>
-                </label>
-              ))}
-            </div>
+            <p className="muted choice-summary" role="status">
+              Đã chọn {values.ingredientIds.length} nguyên liệu
+            </p>
           </fieldset>
 
           {/* Định dạng link (chỉ http/https) do API kiểm tra → lỗi hiện ở đây nếu sai. */}
