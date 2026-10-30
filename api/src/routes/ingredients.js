@@ -3,7 +3,7 @@
 //   - tên nguyên liệu không được trùng
 //   - nguyên liệu đang được món nào dùng thì KHÔNG cho xoá → IN_USE kèm danh sách món
 import { Router } from "express";
-import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken, findPage } from "../db.js";
+import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken, findPage, findFuzzyPage } from "../db.js";
 import { ok, notFound, validationFailed, inUse } from "../http/respond.js";
 import { jsonBody } from "../http/json-body.js";
 import { parseId } from "../validators/id.js";
@@ -27,10 +27,16 @@ const dishesUsing = (ingredientId) =>
 // Danh sách có phân trang, mỗi nguyên liệu kèm số món đang dùng (cột "Dùng trong N món" ở trang quản trị).
 //   ?q= (tìm kiếm admin, giữ từ block5): khớp tên HOẶC đơn vị, không phân biệt hoa thường
 //   &page= &pageSize= (mặc định 1, 20) hoặc ?all=true (form món cần đủ 250 nguyên liệu để chọn)
+//   ?mode=fuzzy&q= : tìm gần đúng theo tên (gõ sai), q bắt buộc
 // Trả data: { items, total, page, pageSize } như GET /api/dishes.
 router.get("/", async (req, res) => {
   const query = parseAdminListQuery(req.query, "nguyên liệu");
   if (hasErrors(query.errors)) return validationFailed(res, query.errors);
+  // mode=fuzzy: gần đúng theo TÊN (pg_trgm), xếp điểm giảm dần rồi id, mỗi dòng có `score` (plan 14.f).
+  if (query.mode === "fuzzy") {
+    const { rows, ...meta } = await findFuzzyPage(prisma.ingredient, "ingredientName", { include: withCount }, query);
+    return ok(res, { items: rows.map(toIngredient), ...meta });
+  }
   const where = searchWhere(query.q, [containsIn("name"), containsIn("unit")]);
   const { rows, ...meta } = await findPage(prisma.ingredient, { where, include: withCount }, query);
   ok(res, { items: rows.map(toIngredient), ...meta });

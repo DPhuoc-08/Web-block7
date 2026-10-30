@@ -903,3 +903,22 @@ Phương án bỏ:
 - Kịch bản chạy lỗi một lần do **kịch bản** bấm Lưu lúc form sửa còn đang tải — đã cho chờ form có dữ liệu, không phải lỗi app.
 
 **Trạng thái:** ca sửa ở trang 2 đã ghi thật (PATCH không đổi dữ liệu) → seed lại ở bước 33.
+
+## Bước 31 — API: tìm gần đúng cho `/api/chefs`, `/api/ingredients` (`?mode=fuzzy`, plan 14.f)
+**Quyết định:** chỉ thêm gần đúng theo **tên** (gõ sai tên người / nguyên liệu là ca thật); không thêm toàn văn (hai bảng chỉ có tên 1–4 chữ, không có mô tả → toàn văn gần như trùng tìm theo từ của cơ bản). Nhóm chốt 30/10/2026.
+
+**Đã làm:**
+- `validators/list-query.js` → `parseAdminListQuery` đọc `mode` (`basic` | `fuzzy`, lạ → `fields.mode`). Ở fuzzy: `q` đọc như `/api/dishes` (lặp → lỗi, trắng → "Nhập từ khoá để tìm." — không âm thầm lấy tất cả); `all=true` → lỗi `fields.all` (form cần đủ danh sách thì gọi basic). Basic giữ nguyên cách đọc `q` của block6.
+- `db.js` → `findFuzzyPage(delegate, matcher, { include }, query)`: câu SQL của `fuzzy.js` (matcher `chefName` / `ingredientName` đã viết sẵn ở bước 28) trả `total` + id/điểm của trang; Prisma nạp chuyên môn / số món theo danh sách id rồi giữ đúng thứ tự điểm (cùng cách `textSearch` của món). Response cùng dạng `{ items, total, page, pageSize }`, mỗi dòng thêm `score`.
+- `routes/chefs.js`, `routes/ingredients.js`: `mode=fuzzy` → `findFuzzyPage`; còn lại như cũ.
+- `check-api.sh`: **phần H** (25 kiểm tra).
+
+**Đã kiểm tra:**
+- Số kỳ vọng đo bằng SQL (`similarity`, ngưỡng 0.3) trước khi viết test, khớp API:
+  - đầu bếp "Nguyễn Văn Ann" → 1 (Nguyễn Văn An 0.813); "Anh Lan" → 2 (Lý Anh Lan 0.800, Vũ Anh Lan 0.727);
+  - nguyên liệu "Tôm xú" → 5: Tôm sú (id 7) và Tôm thẻ (id 57) **cùng 0.400** → id 7 trước; rồi Tôm khô 0.364, Mắm tôm 0.364, Tôm càng 0.333; "Nước mắn" → Nước mắm 0.636.
+- Phân trang sau khi xếp điểm: "Tôm xú" `pageSize=2&page=2` → id 80, 145; `page=4` → `items: []`, total 5, page 4.
+- `mode=abc|fulltext|advanced`, fuzzy thiếu / trắng / lặp `q`, fuzzy + `all=true`, `page=0` → `VALIDATION_FAILED` đúng trường; `mode=basic` tường minh = mặc định, không có `score`.
+- `check-api.sh`: **298/298 đạt** (273 + 25 phần H).
+
+**Ghi nhận (giới hạn của similarity trên cả tên):** "Nguyễn" chỉ khớp 3 đầu bếp họ Nguyễn có tên ngắn (0.500, 0.438, 0.412) — tìm một phần tên thì dùng Cơ bản. Đã ghi trong plan 14.2.

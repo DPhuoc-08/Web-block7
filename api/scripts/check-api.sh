@@ -8,7 +8,8 @@
 #   ./scripts/check-api.sh E          → chỉ phần E (tag của món và chuyên môn đầu bếp — block7)
 #   ./scripts/check-api.sh F          → chỉ phần F (phân trang admin đầu bếp, nguyên liệu — plan mục 12)
 #   ./scripts/check-api.sh G          → chỉ phần G (tìm theo nguyên liệu, đầu bếp ?by= — plan mục 14)
-# Phần C, D, F, G đối chiếu với dữ liệu seed (1.200 món, 60 đầu bếp, 250 nguyên liệu) → chạy `npx prisma db seed` trước.
+#   ./scripts/check-api.sh H          → chỉ phần H (tìm gần đúng admin đầu bếp, nguyên liệu — plan 14.f)
+# Phần C, D, F, G, H đối chiếu với dữ liệu seed (1.200 món, 60 đầu bếp, 250 nguyên liệu) → chạy `npx prisma db seed` trước.
 # Kiểm tra 500 (mất kết nối DB): chạy thêm một API với DATABASE_URL sai ở cổng khác rồi đặt
 #   API_BROKEN=http://localhost:3001 ./scripts/check-api.sh A
 # Script tự tạo rồi tự xoá món/đầu bếp/nguyên liệu test. Tag test KHÔNG xoá được (API không có xoá tag)
@@ -644,6 +645,44 @@ part_g() {
   expect_code "fuzzy by=chef q trắng → VALIDATION_FAILED fields.q" VALIDATION_FAILED '(.error.fields | keys) == ["q"]'
 }
 
+part_h() {
+  echo "== H. Tìm gần đúng admin GET /api/chefs, /api/ingredients ?mode=fuzzy (plan 14.f) — số kỳ vọng đo bằng SQL trên seed"
+  local by_score='[range(1; length) as $i | (.[$i-1].score > .[$i].score) or (.[$i-1].score == .[$i].score and .[$i-1].id < .[$i].id)] | all'
+  req GET "/api/chefs?mode=fuzzy&q=Nguy%E1%BB%85n%20V%C4%83n%20Ann"
+  expect "chefs fuzzy \"Nguyễn Văn Ann\" (gõ sai) → 1 người: Nguyễn Văn An, điểm 0.813, kèm chuyên môn + số món" 200 '.data.total == 1 and .data.items[0].name == "Nguyễn Văn An" and .data.items[0].score == 0.813 and (.data.items[0].tags | length) > 0 and .data.items[0].dishCount == 21'
+  req GET "/api/chefs?mode=fuzzy&q=Anh%20Lan"
+  expect "chefs fuzzy \"Anh Lan\" → 2 người (Lý Anh Lan 0.8, Vũ Anh Lan 0.727), điểm giảm dần" 200 '.data.total == 2 and ([.data.items[].id] == [9, 46])'
+  req GET "/api/ingredients?mode=fuzzy&q=T%C3%B4m%20x%C3%BA"
+  expect "ingredients fuzzy \"Tôm xú\" → 5 nguyên liệu; Tôm sú, Tôm thẻ cùng 0.4 → id 7 trước 57" 200 ".data.total == 5 and ([.data.items[].id] == [7, 57, 80, 145, 58]) and (.data.items | [.[] | {id, score}] | $by_score) and all(.data.items[]; .score >= 0.3)"
+  req GET "/api/ingredients?mode=fuzzy&q=T%C3%B4m%20x%C3%BA&pageSize=2&page=2"
+  expect "  …pageSize=2&page=2 → id 80, 145 (LIMIT/OFFSET sau khi xếp điểm), total vẫn 5" 200 '.data.total == 5 and ([.data.items[].id] == [80, 145]) and .data.page == 2'
+  req GET "/api/ingredients?mode=fuzzy&q=T%C3%B4m%20x%C3%BA&pageSize=2&page=4"
+  expect "  …page=4 (vượt phạm vi) → ok, items [], total 5, page giữ 4" 200 '.ok and .data.items == [] and .data.total == 5 and .data.page == 4'
+  req GET "/api/ingredients?mode=fuzzy&q=N%C6%B0%E1%BB%9Bc%20m%E1%BA%AFn"
+  expect "ingredients fuzzy \"Nước mắn\" → Nước mắm đứng đầu" 200 '.data.items[0].name == "Nước mắm"'
+  req GET "/api/chefs?mode=fuzzy&q=khongconguoinay"
+  expect "fuzzy không khớp → ok, items [], total 0" 200 '.ok and .data.items == [] and .data.total == 0'
+  local path
+  for path in /api/chefs /api/ingredients; do
+    req GET "$path?mode=fuzzy"
+    expect_code "$path mode=fuzzy không có q → VALIDATION_FAILED fields.q" VALIDATION_FAILED '(.error.fields | keys) == ["q"]'
+    req GET "$path?mode=fuzzy&q=%20%20"
+    expect_code "$path mode=fuzzy q trắng → VALIDATION_FAILED fields.q (không âm thầm lấy tất cả)" VALIDATION_FAILED '(.error.fields | keys) == ["q"]'
+    req GET "$path?mode=fuzzy&q=a&q=b"
+    expect_code "$path mode=fuzzy q lặp → VALIDATION_FAILED fields.q" VALIDATION_FAILED '(.error.fields | keys) == ["q"]'
+    req GET "$path?mode=fuzzy&q=x&all=true"
+    expect_code "$path mode=fuzzy + all=true → VALIDATION_FAILED fields.all" VALIDATION_FAILED '(.error.fields | keys) == ["all"]'
+    for bad in abc fulltext advanced; do
+      req GET "$path?mode=$bad&q=x"
+      expect_code "$path mode=$bad → VALIDATION_FAILED fields.mode" VALIDATION_FAILED '(.error.fields | keys) == ["mode"]'
+    done
+    req GET "$path?mode=fuzzy&q=x&page=0"
+    expect_code "$path mode=fuzzy page=0 → VALIDATION_FAILED fields.page" VALIDATION_FAILED '(.error.fields | keys) == ["page"]'
+    req GET "$path?mode=basic"
+    expect "$path mode=basic tường minh → như mặc định (id 1–20, không có score)" 200 '([.data.items[].id] == [range(1;21)]) and all(.data.items[]; has("score") | not)'
+  done
+}
+
 case $PART in
   A) part_a ;;
   B) part_b ;;
@@ -652,7 +691,8 @@ case $PART in
   E) part_e ;;
   F) part_f ;;
   G) part_g ;;
-  *) part_a; part_b; part_c; part_d; part_e; part_f; part_g ;;
+  H) part_h ;;
+  *) part_a; part_b; part_c; part_d; part_e; part_f; part_g; part_h ;;
 esac
 
 echo

@@ -4,7 +4,7 @@
 //   - xoá đầu bếp còn món: phải chọn người nhận (?transferTo=<id>), chuyển món + xoá trong một transaction
 // Block7: chuyên môn là danh sách tag (chef_tags), ghi bằng `tagIds`, đọc ra `tags: [{id, name}]`.
 import { Router } from "express";
-import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken, findPage } from "../db.js";
+import { prisma, isNotFound, isUniqueViolation, isForeignKeyViolation, nameTaken, findPage, findFuzzyPage } from "../db.js";
 import { ok, notFound, validationFailed, inUse } from "../http/respond.js";
 import { jsonBody } from "../http/json-body.js";
 import { parseId } from "../validators/id.js";
@@ -26,10 +26,16 @@ const dishesOf = (chefId) =>
 // Danh sách có phân trang, mỗi đầu bếp kèm chuyên môn và số món đang phụ trách (cột "Phụ trách N món" ở trang quản trị).
 //   ?q= (tìm kiếm admin, giữ từ block5): khớp tên HOẶC tên một chuyên môn, không phân biệt hoa thường
 //   &page= &pageSize= (mặc định 1, 20) hoặc ?all=true (form món, trang xoá đầu bếp cần đủ danh sách để chọn)
+//   ?mode=fuzzy&q= : tìm gần đúng theo tên (gõ sai), q bắt buộc
 // Trả data: { items, total, page, pageSize } như GET /api/dishes.
 router.get("/", async (req, res) => {
   const query = parseAdminListQuery(req.query, "đầu bếp");
   if (hasErrors(query.errors)) return validationFailed(res, query.errors);
+  // mode=fuzzy: gần đúng theo TÊN (pg_trgm), xếp điểm giảm dần rồi id, mỗi dòng có `score` (plan 14.f).
+  if (query.mode === "fuzzy") {
+    const { rows, ...meta } = await findFuzzyPage(prisma.chef, "chefName", { include: withCount }, query);
+    return ok(res, { items: rows.map(toChef), ...meta });
+  }
   const where = searchWhere(query.q, [containsIn("name"), (s) => ({ tags: { some: { tag: containsIn("name")(s) } } })]);
   const { rows, ...meta } = await findPage(prisma.chef, { where, include: withCount }, query);
   ok(res, { items: rows.map(toChef), ...meta });

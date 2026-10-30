@@ -73,12 +73,26 @@ export function parsePaging(query, errors, { defaultSize, noun }) {
 
 // Danh sách admin đầu bếp / nguyên liệu: ?q= &page= &pageSize= hoặc ?all=true (form cần đủ danh sách để chọn).
 // q giữ cách đọc của block6 (mảng ?q=a&q=b → coi như không có). `all` chỉ nhận đúng chuỗi "true".
+// ?mode=fuzzy (plan 14.f): tìm gần đúng theo tên — giống fuzzy của món: q BẮT BUỘC (trống → lỗi, không âm thầm lấy
+// tất cả), q lặp → lỗi; không dùng cùng all=true (form cần đủ danh sách thì gọi basic). Không có fulltext: hai bảng
+// chỉ có tên 1–4 chữ, không có mô tả.
+export const ADMIN_MODES = ["basic", "fuzzy"];
+
 export function parseAdminListQuery(query, noun) {
   const errors = {};
+  const read = reader(query, errors);
   const { page, pageSize } = parsePaging(query, errors, { defaultSize: ADMIN_PAGE_SIZE_DEFAULT, noun });
-  const rawAll = reader(query, errors)("all");
+  const rawAll = read("all");
   if (rawAll !== null && rawAll !== "true") errors.all = "Tham số all chỉ nhận giá trị true.";
-  return { q: queryStr(query.q), all: rawAll === "true", page, pageSize, errors };
+
+  const mode = read("mode") ?? "basic";
+  if (!ADMIN_MODES.includes(mode)) errors.mode = `Kiểu tìm phải là một trong: ${ADMIN_MODES.join(", ")}.`;
+  if (mode !== "fuzzy") return { mode, q: queryStr(query.q), all: rawAll === "true", page, pageSize, errors };
+
+  const q = read("q");
+  if (q === null && !errors.q) errors.q = "Nhập từ khoá để tìm.";
+  if (rawAll === "true") errors.all = "Tìm gần đúng không dùng cùng all=true.";
+  return { mode, q, all: false, page, pageSize, errors };
 }
 
 export function parseListQuery(query) {
