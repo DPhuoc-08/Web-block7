@@ -1,5 +1,5 @@
 import { Link, useLocation, useSearchParams } from "react-router";
-import AdminSearch from "../../../components/AdminSearch.jsx";
+import AdminSearch, { adminModeParam } from "../../../components/AdminSearch.jsx";
 import { listDishes } from "../../../api/dishes.js";
 import { useLoad } from "../../../hooks/useLoad.js";
 import { useDocumentTitle } from "../../../hooks/useDocumentTitle.js";
@@ -14,10 +14,19 @@ import DishImage from "../../../components/DishImage.jsx";
 
 const PAGE_SIZE = 20;
 
+// Kiểu tìm của admin món (plan 14.e): dùng lại các mode của GET /api/dishes, không đổi API.
+const MODES = [
+  { value: "basic", label: "Cơ bản", placeholder: "Tìm theo tên món hoặc tag" },
+  { value: "fulltext", label: "Toàn văn", placeholder: "Các từ trong tên, mô tả — ví dụ: nước dùng xương" },
+  { value: "fuzzy", label: "Gần đúng", placeholder: "Tên gõ sai vẫn ra — ví dụ: Bò lúc lắt" },
+];
+
 // Danh sách quản trị món (/admin/dishes?q=&page=). Phân trang tại server: mỗi lần chỉ nhận 20 món của trang đang xem
 // (1.200 món tải một lần mất ~14s ở bước 5). Xếp id tăng dần (1 → 1200, plan mục 12): thứ tự cố định, sửa/xoá
 // không làm các món khác đổi trang. Thêm món xong về trang 1 + thông báo (món mới nằm ở trang cuối).
 // q, page nằm trên URL của trang: Reload, copy link, Back/Forward mở lại đúng trang và từ khoá.
+// mode=fulltext|fuzzy (plan 14.e, 14.g): xếp theo điểm phù hợp giảm dần rồi id — ngoại lệ có chủ đích của "id tăng
+// dần" (xếp theo id thì món khớp nhất có thể nằm ở trang sau); thêm cột Điểm để thấy vì sao món đứng trước.
 export default function AdminDishListPage() {
   useDocumentTitle("Quản trị món ăn");
   const { pathname, search } = useLocation();
@@ -25,17 +34,21 @@ export default function AdminDishListPage() {
   const q = searchParams.get("q")?.trim() ?? "";
   // page gửi nguyên văn cho API: API là nơi kiểm tra (page=0, page=abc → VALIDATION_FAILED → InvalidQuery).
   const rawPage = searchParams.get("page") ?? "";
-  // Admin tìm cả tên món và tên tag (như admin block5 tìm cả loại); trang người dùng chỉ tìm theo tên.
+  const mode = adminModeParam(searchParams);
+  // Cơ bản: tìm cả tên món và tên tag (như admin block5 tìm cả loại); trang người dùng mặc định chỉ tìm theo tên.
+  // Toàn văn / gần đúng: gửi mode + q như thực đơn.
   const { status, data, error, reload } = useLoad(
-    // Không gửi sort → API xếp id ASC (mặc định của /api/dishes).
-    (signal) => listDishes({ q, searchIn: q ? "name,tag" : "", page: rawPage, pageSize: PAGE_SIZE }, { signal }),
-    [q, rawPage],
+    // Không gửi sort → API xếp id ASC (mặc định của /api/dishes); toàn văn / gần đúng xếp theo điểm.
+    (signal) =>
+      listDishes(mode ? { mode, q, page: rawPage, pageSize: PAGE_SIZE } : { q, searchIn: q ? "name,tag" : "", page: rawPage, pageSize: PAGE_SIZE }, { signal }),
+    [q, rawPage, mode],
   );
   const { savedId, savedRowRef } = useJustSaved();
   const dishes = data?.items ?? [];
+  const scored = dishes.some((d) => d.score !== undefined);
   const totalPages = data ? Math.ceil(data.total / data.pageSize) : 0;
-  // Link tới trang n: giữ từ khoá, bỏ thông báo ?msg= của lần lưu trước; trang 1 không ghi page cho URL gọn.
-  const hrefFor = (n) => `${pathname}${toQuery({ q, page: n > 1 ? n : "" })}`;
+  // Link tới trang n: giữ từ khoá + kiểu tìm, bỏ thông báo ?msg= của lần lưu trước; trang 1 không ghi page cho URL gọn.
+  const hrefFor = (n) => `${pathname}${toQuery({ q, mode, page: n > 1 ? n : "" })}`;
   // Sửa/xoá xong quay về đúng URL danh sách này (giữ trang, từ khoá).
   const backState = { backTo: pathname + search };
 
@@ -56,7 +69,7 @@ export default function AdminDishListPage() {
         </Link>
       </div>
 
-      <AdminSearch label="Tìm món" placeholder="Tìm theo tên món hoặc tag" count={status === "ok" ? data.total : null} />
+      <AdminSearch label="Tìm món" placeholder="Tìm theo tên món hoặc tag" count={status === "ok" ? data.total : null} modes={MODES} />
 
       {status === "loading" && <SkeletonList rows={8} variant="table" />}
       {invalid && <InvalidQuery fields={error.fields} resetTo={pathname} resetLabel="Về trang 1" />}
@@ -81,6 +94,7 @@ export default function AdminDishListPage() {
                 <th>Tag</th>
                 <th>Đầu bếp</th>
                 <th>Tình trạng</th>
+                {scored && <th>Điểm</th>}
                 <th>
                   <span className="sr-only">Thao tác</span>
                 </th>
@@ -108,6 +122,11 @@ export default function AdminDishListPage() {
                   <td data-label="Tình trạng">
                     <span className={`badge ${d.available ? "on" : "off"}`}>{d.available ? "Đang phục vụ" : "Tạm hết"}</span>
                   </td>
+                  {scored && (
+                    <td className="num" data-label="Điểm">
+                      {d.score.toFixed(3)}
+                    </td>
+                  )}
                   {/* Hai link chỉ mở trang (form sửa, trang xác nhận xoá); không link nào tự ghi dữ liệu. */}
                   <td className="actions">
                     <Link className="btn btn-sm" to={`/admin/dishes/${d.id}/edit`} state={backState}>

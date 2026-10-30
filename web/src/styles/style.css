@@ -136,6 +136,9 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
 .toolbar h1 { font-size: 1.5rem; font-weight: 600; }
 .admin-search { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .admin-search input { flex: 1 1 260px; max-width: 420px; }
+.admin-search input[aria-invalid="true"] { border-color: var(--danger); }
+/* Kiểu tìm của admin (plan mục 14): ô chọn gọn bên phải ô chữ */
+.admin-mode select { width: auto; font-weight: 600; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
@@ -245,6 +248,10 @@ td.actions .btn + .btn { margin-left: 6px; }
   .admin-nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .admin-nav a { flex: none; }
   .admin-search input { flex: 1 1 0; min-width: 0; max-width: none; }
+  /* Có ô kiểu tìm: ô chữ chiếm cả hàng, kiểu tìm + Tìm xuống hàng dưới */
+  .admin-search:has(.admin-mode) input { flex-basis: 100%; }
+  .admin-mode { flex: 1 1 auto; }
+  .admin-mode select { width: 100%; }
   .toolbar h1 { font-size: 1.3rem; }
   .form-panel, .confirm { padding: 18px; }
   .form-actions .btn { flex: 1 1 0; }

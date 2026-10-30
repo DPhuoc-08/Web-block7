@@ -866,7 +866,7 @@ Phương án bỏ:
 **Phương án bỏ:** placeholder "ví dụ: tôm, sả" — dễ hiểu nhầm là nhập được nhiều nguyên liệu cách nhau dấu phẩy (thực tế là một chuỗi literal → "tôm, sả" ra 0 món).
 
 **Đã kiểm tra** (Chrome headless qua DevTools Protocol, Vite :5173 + API :3000, **22/22 đạt** sau khi sửa kịch bản):
-- Ô Tìm theo có 3 lựa chọn, mặc định tên món; đổi lựa chọn chưa đổi URL; Tìm → URL `?by=ingredient&q=tôm`, request `GET /api/dishes?mode=basic&by=ingredient&q=tôm&page=&pageSize=12`, dòng "Kết quả cho nguyên liệu “tôm”".
+- Ô Tìm theo có 3 lựa chọn, mặc định tên món; đổi lựa chọn chưa đổi URL; Tìm → URL `?by=ingredient&q=tôm`, request `GET /api/dishes` có `by=ingredient` và `q=tôm`, dòng "Kết quả cho nguyên liệu “tôm”".
 - Trang 2 giữ `by`, `q`; Back → trang 1 cùng điều kiện; Reload `?by=ingredient&q=tôm&page=2` khôi phục ô chọn, ô chữ, request đúng trang.
 - Từ trang 3 đổi sang "Theo đầu bếp" "mai" → URL mới không có `page` (về trang 1), dòng "Kết quả cho đầu bếp “mai”".
 - Chọn Toàn văn → ô khoá ở tên món; URL và request không có `by`.
@@ -875,3 +875,31 @@ Phương án bỏ:
 - Nút danh mục giữ `by` + `q`; URL `?by=abc` → lỗi "Chỉ tìm theo tên món, nguyên liệu hoặc đầu bếp." cạnh khung tìm.
 - 1280 / 820 / 375px không cuộn ngang (ở 375px ô "Tìm theo" và ô chế độ chung một hàng, "Bộ lọc nâng cao" xuống hàng). Không lỗi console. `vite build` thành công.
 - Kịch bản báo chưa đạt ở lần đầu do **kịch bản** chờ sai (đọc thẻ của danh sách cũ trước khi response mới về; so URL bằng `decodeURIComponent` không đổi `+` thành khoảng trắng) — đã sửa kịch bản, không phải lỗi app.
+
+## Bước 30 — SPA admin món: kiểu tìm Cơ bản / Toàn văn / Gần đúng, cột Điểm (plan 14.e, 14.g)
+**Trả lời câu hỏi của nhóm "admin đã có fuzzy, full-text chưa?":** chưa. Trước bước này 3 trang admin chỉ tìm chứa từ khoá (món: tên hoặc tag; đầu bếp: tên hoặc chuyên môn; nguyên liệu: tên hoặc đơn vị). API `/api/dishes` đã có `mode=fulltext|fuzzy` từ bước 8 nhưng chỉ thực đơn khách dùng.
+
+**Đã làm:**
+- `AdminSearch.jsx` nhận thêm `modes` (danh sách kiểu tìm, dùng chung cho 3 trang admin):
+  - ô chọn "Kiểu tìm" cạnh ô chữ; placeholder theo kiểu;
+  - kiểu khác "basic" ghi `?mode=` lên URL và **bắt buộc có từ khoá**: trống → "Nhập từ khoá để tìm gần đúng." cạnh ô, không đổi URL, không gọi API (như thực đơn);
+  - "Xoá tìm kiếm" bỏ cả `q` và `mode`; Back/Forward đồng bộ lại ô chữ và ô kiểu;
+  - dòng đếm ghi kiểu: "Tìm thấy 6 kết quả cho “Bò lúc lắt” · gần đúng, xếp theo độ phù hợp.";
+  - `adminModeParam(searchParams)`: kiểu cơ bản không gửi `mode` (request giữ nguyên như trước), kiểu khác gửi nguyên văn để API kiểm tra.
+- `AdminDishListPage.jsx`: cơ bản gửi `searchIn=name,tag` như cũ; toàn văn / gần đúng gửi `mode` + `q` (không đổi API); link số trang giữ `q` + `mode`; cột **Điểm** khi response có `score` (trên điện thoại thành dòng "Điểm" của thẻ).
+- CSS: ô kiểu tìm gọn bên phải ô chữ; ≤ 600px ô chữ chiếm cả hàng, kiểu tìm + Tìm + Xoá tìm kiếm xuống hàng dưới; viền đỏ khi thiếu từ khoá.
+
+**Quyết định:** thứ tự ở toàn văn / gần đúng là điểm giảm dần rồi id (plan 14.g) — ngoại lệ có chủ đích của "admin xếp id tăng dần" (mục 12): xếp theo id thì món khớp nhất có thể nằm ở trang sau.
+
+**Đã kiểm tra** (Chrome headless, **16/16 đạt**):
+- Ô kiểu tìm Cơ bản / Toàn văn / Gần đúng, mặc định Cơ bản; Cơ bản không có cột Điểm, dòng đầu id 1.
+- Gần đúng + từ khoá trống → lỗi cạnh ô, URL không đổi.
+- Gần đúng "Bò lúc lắt" → URL và request có `mode=fuzzy`; dòng đầu "Bò lúc lắc" 0.667, điểm giảm dần (6 món: 0.667, 0.500, 0.400, 0.381, 0.333, 0.308).
+- Toàn văn "nước dùng xương" → "Tìm thấy 62 kết quả", bằng `total` của API.
+- Gần đúng "Cơm tấm suờn nướng" (29 món) → trang 2 giữ `q` + `mode`; bấm Sửa ở trang 2, Lưu → quay về đúng `?q=…&mode=fuzzy&page=2`.
+- Xoá tìm kiếm → bỏ `q`, `mode`, ô về Cơ bản; Back → khôi phục Gần đúng + từ khoá.
+- URL `?mode=abc&q=x` → "Điều kiện tìm không hợp lệ".
+- 1280 / 820 / 375px không cuộn ngang. Không lỗi console. `vite build` thành công.
+- Kịch bản chạy lỗi một lần do **kịch bản** bấm Lưu lúc form sửa còn đang tải — đã cho chờ form có dữ liệu, không phải lỗi app.
+
+**Trạng thái:** ca sửa ở trang 2 đã ghi thật (PATCH không đổi dữ liệu) → seed lại ở bước 33.
