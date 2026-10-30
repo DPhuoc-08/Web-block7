@@ -1,15 +1,24 @@
-// Điều kiện của thực đơn nằm trên URL của TRANG (/dishes?mode=&q=&tag=&minPrice=&maxPrice=&available=&sort=&view=&page=).
+// Điều kiện của thực đơn nằm trên URL của TRANG (/dishes?mode=&by=&q=&tag=&minPrice=&maxPrice=&available=&sort=&view=&page=).
 // Trang đọc URL → dựng tham số API → gọi GET /api/dishes. URL trang và URL API là hai thứ khác nhau:
 // URL trang có `view` (cách hiển thị) mà API không cần; API có `pageSize` mà URL trang không ghi.
 // Giá trị gửi API nguyên văn (không tự sửa): API validate, sai thì trả VALIDATION_FAILED → trang hiện lỗi cạnh ô.
 
 export const MODES = [
-  { value: "basic", label: "Cơ bản", hint: "Tên món chứa từ khoá" },
-  { value: "advanced", label: "Nâng cao", hint: "Tên + tag + khoảng giá + trạng thái" },
-  { value: "fulltext", label: "Toàn văn", hint: "Các từ trong tên và mô tả, không cần liền nhau" },
-  { value: "fuzzy", label: "Gần đúng", hint: "Tên gần giống khi gõ sai" },
+  { value: "basic", label: "Cơ bản", hint: "Chứa đúng từ khoá" },
+  { value: "advanced", label: "Nâng cao", hint: "Từ khoá + tag + khoảng giá + trạng thái" },
+  { value: "fulltext", label: "Toàn văn", hint: "Các từ trong tên và mô tả món, không cần liền nhau" },
+  { value: "fuzzy", label: "Gần đúng", hint: "Gần giống khi gõ sai" },
 ];
 export const TEXT_MODES = ["fulltext", "fuzzy"];
+
+// "Tìm theo" (plan mục 14): từ khoá so với tên món (mặc định), tên nguyên liệu hoặc tên đầu bếp — `value` là hợp đồng
+// với API (`by`). Dùng ở cơ bản, nâng cao, gần đúng; toàn văn luôn tìm trong tên + mô tả món.
+export const SEARCH_BY = [
+  { value: "name", label: "Theo tên món", noun: "" },
+  { value: "ingredient", label: "Theo nguyên liệu", noun: "nguyên liệu " },
+  { value: "chef", label: "Theo đầu bếp", noun: "đầu bếp " },
+];
+export const usesBy = (mode) => mode !== "fulltext";
 
 // `value` là hợp đồng với API (api/src/validators/list-query.js → SORTS).
 export const SORTS = [
@@ -33,7 +42,7 @@ export const VIEWS = [
 
 export const PAGE_SIZE = 12;
 
-const FIELDS = ["mode", "q", "tag", "minPrice", "maxPrice", "available", "sort"];
+const FIELDS = ["mode", "by", "q", "tag", "minPrice", "maxPrice", "available", "sort"];
 
 // Đọc điều kiện từ URL trang. Giá trị thiếu → mặc định; giá trị lạ GIỮ NGUYÊN để gửi API (API báo lỗi).
 export function readQuery(searchParams) {
@@ -41,6 +50,7 @@ export function readQuery(searchParams) {
   const view = get("view");
   return {
     mode: get("mode") || "basic",
+    by: get("by") || "name",
     q: get("q"),
     tag: get("tag"),
     minPrice: get("minPrice"),
@@ -53,9 +63,11 @@ export function readQuery(searchParams) {
 }
 
 // Tham số API theo chế độ: basic chỉ q + sort; advanced thêm tag, giá, trạng thái; fulltext/fuzzy chỉ q
-// (xếp theo điểm). Không gửi tham số không thuộc chế độ → URL API gọn, Network dễ đọc khi demo.
+// (xếp theo điểm). `by` gửi khi khác tên món, trừ toàn văn. Không gửi tham số không thuộc chế độ → URL API gọn,
+// Network dễ đọc khi demo.
 export function toApiParams(query, { page = query.page, pageSize = PAGE_SIZE } = {}) {
   const p = { mode: query.mode, q: query.q, page, pageSize };
+  if (usesBy(query.mode) && query.by !== "name") p.by = query.by;
   if (!TEXT_MODES.includes(query.mode)) p.sort = query.sort;
   if (query.mode === "advanced") Object.assign(p, { tag: query.tag, minPrice: query.minPrice, maxPrice: query.maxPrice, available: query.available });
   return p;

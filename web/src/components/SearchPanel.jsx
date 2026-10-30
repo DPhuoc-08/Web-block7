@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { MODES, TEXT_MODES, AVAILABILITY } from "../listQuery.js";
+import { MODES, TEXT_MODES, AVAILABILITY, SEARCH_BY, usesBy } from "../listQuery.js";
+
+// Gợi ý trong ô chữ theo "Tìm theo" và chế độ: ví dụ lấy từ dữ liệu seed (số đo ở BUILD_LOG bước 28).
+const PLACEHOLDER = {
+  name: { basic: "Tìm món, ví dụ: phở, bún", fuzzy: "Ví dụ: bò lúc lắt" },
+  ingredient: { basic: "Nguyên liệu, ví dụ: tôm", fuzzy: "Ví dụ: tôm xú" },
+  chef: { basic: "Tên đầu bếp, ví dụ: Mai", fuzzy: "Ví dụ: Trần Thị Bít" },
+};
 
 // Khung tìm của thực đơn: 4 chế độ (plan mục 6.4), bố cục gọn theo bản phác Figma (plan mục 13). Giữ giá trị đang nhập
 // trong state của form; chỉ ghi lên URL khi người dùng ÁP DỤNG (không theo từng phím) → URL luôn là bộ điều kiện
@@ -9,6 +16,8 @@ import { MODES, TEXT_MODES, AVAILABILITY } from "../listQuery.js";
 // - "Bộ lọc nâng cao" (13.f): bật/tắt chế độ Nâng cao NGAY TRONG FORM (như chọn "Nâng cao" ở ô chế độ) để hiện
 //   ô tag, giá, trạng thái; chưa đổi URL cho tới khi bấm Tìm.
 // - Toàn văn / gần đúng mà từ khoá trống: không áp dụng (không gọi API), báo lỗi cạnh ô.
+// - "Tìm theo" (plan mục 14): từ khoá so với tên món / nguyên liệu / đầu bếp, áp dụng khi Tìm như ô chế độ.
+//   Toàn văn chỉ tìm trong tên + mô tả món → ô bị khoá ở "Theo tên món".
 // Chip tag → CategoryBar; ô sắp xếp → thanh công cụ của danh sách (13.g).
 // fieldErrors: lỗi VALIDATION_FAILED của API theo tên tham số (vd. URL sửa tay ?minPrice=abc) → hiện cạnh đúng ô.
 export default function SearchPanel({ query, tags, fieldErrors = {}, onApply }) {
@@ -22,11 +31,14 @@ export default function SearchPanel({ query, tags, fieldErrors = {}, onApply }) 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const isText = TEXT_MODES.includes(form.mode);
   const isAdvanced = form.mode === "advanced";
+  const byLocked = !usesBy(form.mode);
+  const by = byLocked ? "name" : form.by;
   const errors = { ...fieldErrors, ...(missingQ ? { q: "Nhập từ khoá để tìm." } : {}) };
 
   function apply(changes = {}) {
     const next = { ...form, ...changes };
     next.q = next.q.trim();
+    if (!usesBy(next.mode)) next.by = "name";
     setForm(next);
     if (TEXT_MODES.includes(next.mode) && !next.q) return setMissingQ(true);
     setMissingQ(false);
@@ -48,9 +60,16 @@ export default function SearchPanel({ query, tags, fieldErrors = {}, onApply }) 
           <path d="M14 14l4 4" />
         </svg>
         <label className="sr-only" htmlFor="menu-q">
-          {isText ? "Từ khoá (bắt buộc)" : "Tên món"}
+          {isText ? "Từ khoá (bắt buộc)" : "Từ khoá"}
         </label>
-        <input id="menu-q" type="search" name="q" value={form.q} onChange={(e) => (set("q", e.target.value), setMissingQ(false))} placeholder={form.mode === "fuzzy" ? "Ví dụ: bò lúc lắt" : form.mode === "fulltext" ? "Ví dụ: nước dùng xương" : "Tìm món, ví dụ: phở, bún"} />
+        <input
+          id="menu-q"
+          type="search"
+          name="q"
+          value={form.q}
+          onChange={(e) => (set("q", e.target.value), setMissingQ(false))}
+          placeholder={form.mode === "fulltext" ? "Ví dụ: nước dùng xương" : (PLACEHOLDER[by] ?? PLACEHOLDER.name)[form.mode === "fuzzy" ? "fuzzy" : "basic"]}
+        />
         <button type="submit" className="btn btn-primary">
           Tìm
         </button>
@@ -58,6 +77,16 @@ export default function SearchPanel({ query, tags, fieldErrors = {}, onApply }) 
       {errors.q && <span className="error">{errors.q}</span>}
 
       <div className="search-options">
+        <label className={`mode-pick${errors.by ? " invalid" : ""}`}>
+          <span className="sr-only">Tìm theo</span>
+          <select name="by" value={by} disabled={byLocked} onChange={(e) => set("by", e.target.value)}>
+            {SEARCH_BY.map((b) => (
+              <option key={b.value} value={b.value}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className={`mode-pick${errors.mode ? " invalid" : ""}`}>
           <span className="sr-only">Kiểu tìm</span>
           <select name="mode" value={form.mode} onChange={(e) => setMode(e.target.value)}>
@@ -79,6 +108,7 @@ export default function SearchPanel({ query, tags, fieldErrors = {}, onApply }) 
         <span className="muted mode-hint">{MODES.find((m) => m.value === form.mode)?.hint ?? "Chế độ tìm không hợp lệ."}</span>
       </div>
       {errors.mode && <span className="error">{errors.mode}</span>}
+      {errors.by && <span className="error">{errors.by}</span>}
 
       {/* Nhóm tiêu chí của advanced: các tiêu chí nối bằng AND; ô trống = không áp dụng tiêu chí đó. */}
       {isAdvanced && (

@@ -16,7 +16,7 @@ import LoadMore from "../../components/LoadMore.jsx";
 import InfiniteSentinel from "../../components/InfiniteSentinel.jsx";
 import { useAppendList } from "../../hooks/useAppendList.js";
 import { useListTop } from "../../hooks/useListTop.js";
-import { readQuery, toApiParams, toPageParams, conditionKey, isFiltered, TEXT_MODES, SORTS, PAGE_SIZE } from "../../listQuery.js";
+import { readQuery, toApiParams, toPageParams, conditionKey, isFiltered, TEXT_MODES, SORTS, PAGE_SIZE, SEARCH_BY, usesBy } from "../../listQuery.js";
 
 // Thực đơn (/dishes). Điều kiện tìm/lọc/sắp xếp nằm trên URL của TRANG (listQuery.js): Reload, copy link,
 // Back/Forward mở lại đúng điều kiện. Phân trang tại server cho cả 3 cách hiển thị (plan mục 0): mỗi request
@@ -64,6 +64,9 @@ function useMenuBase() {
 // Trang khách không hiện số đếm (plan 13.4): chỉ khi đang tìm/lọc mới có dòng chữ "Kết quả cho “…”", và chỉ sau khi
 // response đã về (`total` ≠ null) — vùng role=status để trình đọc màn hình biết danh sách vừa đổi.
 // Ô sắp xếp áp dụng ngay trên bộ điều kiện ĐÃ ÁP DỤNG (URL), về trang 1; toàn văn / gần đúng xếp theo điểm → khoá ô.
+// "Kết quả cho nguyên liệu “tôm”": nói rõ từ khoá đã so với cột nào (plan mục 14); toàn văn luôn là tên + mô tả.
+const byNoun = (query) => (usesBy(query.mode) ? (SEARCH_BY.find((b) => b.value === query.by)?.noun ?? "") : "");
+
 function MenuToolbar({ query, total, clearUrl, onApply, fieldErrors }) {
   const viewHref = (v) => `/dishes${toQuery(toPageParams({ ...query, view: v, page: "" }))}`;
   const isText = TEXT_MODES.includes(query.mode);
@@ -72,7 +75,7 @@ function MenuToolbar({ query, total, clearUrl, onApply, fieldErrors }) {
       <div className="result-line" role="status" aria-live="polite">
         {total !== null && isFiltered(query) && (
           <span>
-            {query.q ? <>Kết quả cho “{query.q}”</> : "Kết quả theo bộ lọc"}
+            {query.q ? <>Kết quả cho {byNoun(query)}“{query.q}”</> : "Kết quả theo bộ lọc"}
             {isText && total > 0 && " · xếp theo độ phù hợp"}
           </span>
         )}

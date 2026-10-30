@@ -830,7 +830,7 @@ Phương án bỏ:
 **Đã làm:**
 - `validators/list-query.js`: `SEARCH_BY`; đọc + validate `by` (trừ fulltext); `basicAdvancedWhere` chọn điều kiện theo `by`:
   - `ingredient` → `ingredients: { some: { ingredient: { name: { contains } } } }` (Prisma sinh `EXISTS` → mỗi món đếm một lần);
-  - `chef` → `chef: { name: { contains } } }`;
+  - `chef` → `chef: { name: { contains } }`;
   - giá trị vẫn qua `escapeLike`, cùng `where` cho `count` và `findMany`.
 - `search/fuzzy.js` dùng chung: `FUZZY_MATCHERS` là các đoạn `Prisma.sql` viết sẵn (tên món, nguyên liệu của món, đầu bếp của món, và sẵn cho bước 31: tên đầu bếp, tên nguyên liệu). Tên bảng/cột là hằng trong code, chỉ `q` là tham số bind; `fuzzyPage(prisma, matcher, q, skip, take)` giữ nguyên `set_config(..., true)` trong cùng transaction và câu `total` + trang.
   - Nguyên liệu: `GROUP BY "dishId"`, điểm = `max(similarity)` — món có nhiều nguyên liệu khớp ("Tôm sú", "Tôm thẻ") vẫn chỉ một dòng.
@@ -852,3 +852,26 @@ Phương án bỏ:
 **Điều chưa chắc:** fuzzy so với **cả** tên nên từ khoá ngắn so với tên dài có thể dưới 0.3 (đo thật "Bích" ↔ "Trần Thị Bích" = 0.385 vẫn khớp; plan ban đầu ghi "Bích" là ví dụ không khớp — sai, đã sửa plan theo số đo).
 
 **Trạng thái:** SPA chưa có ô "Tìm theo" → bước 29. Chưa seed lại (còn test ghi ở bước 31) — seed ở bước 33.
+
+## Bước 29 — SPA thực đơn: ô "Tìm theo" (plan mục 14.a, 14.c)
+**Đã làm:**
+- `listQuery.js`:
+  - `SEARCH_BY` (Theo tên món / nguyên liệu / đầu bếp, `value` là hợp đồng với API `by`), `usesBy(mode)` (mọi chế độ trừ toàn văn);
+  - `by` vào `readQuery` (thiếu → `name`, giá trị lạ giữ nguyên để API báo lỗi), `FIELDS` (→ `conditionKey` đổi khi đổi `by` → về đầu danh sách), `toApiParams` (chỉ gửi khi khác `name` và không phải toàn văn → URL trang và URL API gọn như trước khi có `by`);
+  - hint của chế độ bỏ chữ "tên" ("Chứa đúng từ khoá", "Từ khoá + tag + …") vì từ khoá không còn chỉ so với tên.
+- `SearchPanel.jsx`: ô chọn "Tìm theo" đứng đầu hàng tuỳ chọn (trước ô chế độ). Áp dụng khi Enter / Tìm như ô chế độ (không đổi URL khi chỉ đổi lựa chọn). Chọn Toàn văn → ô bị khoá ở "Theo tên món" và `apply` đặt lại `by = name`. Placeholder theo lựa chọn, ví dụ lấy từ số đo bước 28 ("tôm", "Mai", "Trần Thị Bít"). Lỗi `fields.by` (URL sửa tay) hiện dưới hàng tuỳ chọn.
+- `DishListPage.jsx`: dòng kết quả nói rõ cột đã so: "Kết quả cho nguyên liệu “tôm”", "Kết quả cho đầu bếp “mai”".
+- `CategoryBar` không phải sửa: link danh mục dựng qua `toPageParams` nên tự giữ `by`.
+
+**Phương án bỏ:** placeholder "ví dụ: tôm, sả" — dễ hiểu nhầm là nhập được nhiều nguyên liệu cách nhau dấu phẩy (thực tế là một chuỗi literal → "tôm, sả" ra 0 món).
+
+**Đã kiểm tra** (Chrome headless qua DevTools Protocol, Vite :5173 + API :3000, **22/22 đạt** sau khi sửa kịch bản):
+- Ô Tìm theo có 3 lựa chọn, mặc định tên món; đổi lựa chọn chưa đổi URL; Tìm → URL `?by=ingredient&q=tôm`, request `GET /api/dishes?mode=basic&by=ingredient&q=tôm&page=&pageSize=12`, dòng "Kết quả cho nguyên liệu “tôm”".
+- Trang 2 giữ `by`, `q`; Back → trang 1 cùng điều kiện; Reload `?by=ingredient&q=tôm&page=2` khôi phục ô chọn, ô chữ, request đúng trang.
+- Từ trang 3 đổi sang "Theo đầu bếp" "mai" → URL mới không có `page` (về trang 1), dòng "Kết quả cho đầu bếp “mai”".
+- Chọn Toàn văn → ô khoá ở tên món; URL và request không có `by`.
+- Gần đúng + đầu bếp "Trần Thị Bít" → `?mode=fuzzy&by=chef&q=…`, điểm 0.667, dòng "… · xếp theo độ phù hợp".
+- Tải thêm tới hết với nguyên liệu "tôm" → **149/149** món, không trùng (khớp `total` API và SQL bước 28).
+- Nút danh mục giữ `by` + `q`; URL `?by=abc` → lỗi "Chỉ tìm theo tên món, nguyên liệu hoặc đầu bếp." cạnh khung tìm.
+- 1280 / 820 / 375px không cuộn ngang (ở 375px ô "Tìm theo" và ô chế độ chung một hàng, "Bộ lọc nâng cao" xuống hàng). Không lỗi console. `vite build` thành công.
+- Kịch bản báo chưa đạt ở lần đầu do **kịch bản** chờ sai (đọc thẻ của danh sách cũ trước khi response mới về; so URL bằng `decodeURIComponent` không đổi `+` thành khoảng trắng) — đã sửa kịch bản, không phải lỗi app.
